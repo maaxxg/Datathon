@@ -1,0 +1,140 @@
+"""Deterministic risk rules (SPEC section 6, decisions D4 and D13).
+
+Every function maps raw source values to a level. No weighting, no AI.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+
+
+class Level(str, Enum):
+    HIGH = "visoko"
+    MEDIUM = "srednje"
+    LOW = "nisko"
+    NONE = "nema_prema_karti"      # source covers the point and shows no hazard
+    NO_DATA = "nema_podataka"      # source does not cover the point or is unavailable
+    # seismic classes (Eurocode 8, EN 1998-1 3.2.1)
+    SEISMIC_VERY_LOW = "vrlo_niska_seizmicnost"
+    SEISMIC_LOW = "niska_seizmicnost"
+    SEISMIC_ABOVE_LOW = "iznad_praga_niske_seizmicnosti"
+
+
+# Severity is used only to pick the "most significant" hazard, never shown as a score.
+SEVERITY = {
+    Level.HIGH: 3, Level.SEISMIC_ABOVE_LOW: 2, Level.MEDIUM: 2,
+    Level.LOW: 1, Level.SEISMIC_LOW: 1, Level.SEISMIC_VERY_LOW: 0,
+    Level.NONE: 0, Level.NO_DATA: -1,
+}
+# Tie-break order from SPEC section 6.
+HAZARD_ORDER = ["flood", "seismic", "landslide", "liquefaction", "sinkhole", "unfavourable", "groundwater"]
+
+
+@dataclass
+class HazardResult:
+    hazard: str
+    level: Level
+    source: str                      # key in layers.yaml
+    detail: dict = field(default_factory=dict)
+    notes: list[str] = field(default_factory=list)
+
+
+# --- floods -----------------------------------------------------------------
+
+FLOODED = {"d_lt_0_5", "d_0_5_1_5", "d_1_5_2_5", "d_gt_2_5"}
+DEEP = {"d_1_5_2_5", "d_gt_2_5"}
+
+
+def flood_hv_level(classes: dict[str, str | None]) -> HazardResult:
+    """classes: scenario ('velika'|'srednja'|'mala') -> depth class, 'outside', or None if unavailable."""
+    detail = dict(classes)
+    if any(v is None for v in classes.values()):
+        return HazardResult("flood", Level.NO_DATA, "flood_hv", detail,
+                            ["Servis Hrvatskih voda nije odgovorio za sve scenarije."])
+    if any(v == "permanent_water" for v in classes.values()):
+        return HazardResult("flood", Level.HIGH, "flood_hv", detail,
+                            ["Točka je na stalnoj vodenoj površini prema karti."])
+    if classes.get("velika") in FLOODED:
+        return HazardResult("flood", Level.HIGH, "flood_hv", detail)
+    srednja = classes.get("srednja")
+    if srednja in DEEP:
+        return HazardResult("flood", Level.HIGH, "flood_hv", detail)
+    if srednja in FLOODED:
+        return HazardResult("flood", Level.MEDIUM, "flood_hv", detail)
+    if classes.get("mala") in FLOODED:
+        return HazardResult("flood", Level.LOW, "flood_hv", detail)
+    return HazardResult("flood", Level.NONE, "flood_hv", detail)
+
+
+def flood_efas_level(depths_m: dict[int, float | None]) -> HazardResult:
+    """depths_m: return period (years) -> depth in m, 0/None if dry. Used only where HV has no data."""
+    detail = {f"rp{k}": v for k, v in sorted(depths_m.items())}
+    notes = ["Europski model (90 m), okvirna procjena; karta Hrvatskih voda ovdje nema podatka."]
+
+    def wet(rp: int) -> bool:
+        d = depths_m.get(rp)
+        return d is not None and d > 0
+
+    if wet(10):
+        level = Level.HIGH
+    elif wet(100):
+        level = Level.MEDIUM
+    elif wet(500):
+        level = Level.LOW
+    else:
+        level = Level.NONE
+    return HazardResult("flood", level, "flood_efas", detail, notes)
+
+
+def combine_flood(hv: HazardResult, efas: HazardResult | None) -> HazardResult:
+    """HV is authoritative; EFAS fills in only when HV has no data at all."""
+    if hv.level is not Level.NO_DATA or efas is None:
+        return hv
+    return efas
+
+
+# --- earthquake -------------------------------------------------------------
+
+def seismic_level(ag_g: float | None, source: str = "seismic") -> HazardResult:
+    """ag_g: reference peak ground acceleration (type A ground), 475-year return period, in g."""
+    if ag_g is None:
+        return HazardResult("seismic", Level.NO_DATA, source)
+    if ag_g <= 0.04:
+        level = Level.SEISMIC_VERY_LOW
+    elif ag_g <= 0.08:
+        level = Level.SEISMIC_LOW
+    else:
+        level = Level.SEISMIC_ABOVE_LOW
+    return HazardResult("seismic", level, source, {"ag_g": round(ag_g, 3)})
+
+
+# --- geohazards (Banovina) --------------------------------------------------
+
+SUSCEPTIBILITY = {"niska": Level.LOW, "srednja": Level.MEDIUM, "visoka": Level.HIGH}
+
+
+def susceptibility_level(hazard: str, value: str | None, in_coverage: bool) -> HazardResult:
+    if not in_coverage:
+        return HazardResult(hazard, Level.NO_DATA, hazard, notes=["Izvan obuhvata studije (Banovina)."])
+    if value is None:
+        return HazardResult(hazard, Level.NO_DATA, hazard, notes=["Točka nije unutar poligona studije."])
+    level = SUSCEPTIBILITY.get(value.strip().lower())
+    if level is None:
+        return HazardResult(hazard, Level.NO_DATA, hazard, {"raw": value}, ["Nepoznat razred u podacima."])
+    return HazardResult(hazard, level, hazard, {"podloznost": value})
+
+
+def unfavourable_level(inside: bool, in_coverage: bool) -> HazardResult:
+    if not in_coverage:
+        return HazardResult("unfavourable", Level.NO_DATA, "unfavourable",
+                            notes=["Izvan obuhvata studije (Banovina)."])
+    return HazardResult("unfavourable", Level.HIGH if inside else Level.NONE, "unfavourable")
+
+
+# --- summary ----------------------------------------------------------------
+
+def most_significant(results: list[HazardResult]) -> HazardResult | None:
+    candidates = [r for r in results if SEVERITY[r.level] > 0]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda r: (SEVERITY[r.level], -HAZARD_ORDER.index(r.hazard)))

@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+node_modules/
+.svelte-kit/
+build/
+.env
+# large downloaded or generated data
+data/raw/
+data/*.sqlite
+data/efas/*.tif
+data/geohazards/*.geojson
+data/grid/

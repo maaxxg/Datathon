@@ -1,0 +1,102 @@
+# Machine-readable catalogue of data sources.
+# Used for the "Izvori podataka" page, report citations and query validation.
+# Coverage bboxes are [min_lon, min_lat, max_lon, max_lat] in WGS84.
+
+layers:
+  flood_hv:
+    title: Karte opasnosti od poplava 2019.
+    publisher: Hrvatske vode
+    licence: bez ograničenja pristupa (WMS AccessConstraints NONE); skup nije objavljen na data.gov.hr
+    url: https://servisi.voda.hr/wms
+    info_url: https://www.voda.hr/hr/karte-opasnosti-od-poplava-karte-rizika-od-poplava-2019
+    year: 2019
+    resolution: render WMS-a (GetMap), dubina u razredima
+    coverage: croatia
+    scenarios: [velika, srednja, mala]
+    classes: [none, d_lt_0_5, d_0_5_1_5, d_1_5_2_5, d_gt_2_5, permanent_water]
+
+  flood_efas:
+    title: EFAS river flood hazard maps v3.1.1
+    publisher: Europska komisija, JRC (Copernicus EMS)
+    licence: ODbL 1.0
+    url: https://jeodpp.jrc.ec.europa.eu/ftp/public/JRC-OpenData/CEMS-EFAS/flood_hazard/
+    info_url: https://doi.org/10.2905/1D128B6C-A4EE-4858-9E34-6210707F3C81
+    year: 2024
+    resolution: 90 m
+    coverage: croatia
+    note: koristi se samo gdje karta Hrvatskih voda nema podatka
+
+  seismic:
+    title: Potresna opasnost (475 god.)
+    publisher: TBD (službena karta RH, PMF; rezerva ESHM20, EFEHR, CC BY 4.0)
+    licence: TBD
+    url: TBD
+    year: TBD
+    resolution: TBD
+    coverage: croatia
+
+  landslide:
+    title: Podložnost klizištima
+    publisher: Ministarstvo prostornoga uređenja, graditeljstva i državne imovine
+    licence: Otvorena dozvola RH
+    url: https://data.gov.hr/ckan/hr/dataset/geohazardi
+    wfs_type: RGN_MGIPU_Public:RGN_kliziste_podloznost
+    year: 2021
+    resolution: poligoni studije (preliminarna identifikacija)
+    coverage: banovina
+    classes: [niska, srednja, visoka]
+
+  liquefaction:
+    title: Podložnost likvefakciji
+    publisher: Ministarstvo prostornoga uređenja, graditeljstva i državne imovine
+    licence: Otvorena dozvola RH
+    url: https://data.gov.hr/ckan/hr/dataset/geohazardi
+    wfs_type: RGN_MGIPU_Public:RGN_likvefakcija_podloznost
+    year: 2021
+    resolution: poligoni studije (preliminarna identifikacija)
+    coverage: banovina
+    classes: [niska, srednja, visoka]
+
+  sinkhole:
+    title: Podložnost vrtačama
+    publisher: Ministarstvo prostornoga uređenja, graditeljstva i državne imovine
+    licence: Otvorena dozvola RH
+    url: https://data.gov.hr/ckan/hr/dataset/geohazardi
+    wfs_type: RGN_MGIPU_Public:RGN_vrtaca_podloznost
+    year: 2021
+    resolution: poligoni studije (preliminarna identifikacija)
+    coverage: banovina
+    classes: [niska, srednja, visoka]
+
+  unfavourable:
+    title: Područja nepovoljna za gradnju
+    publisher: Ministarstvo prostornoga uređenja, graditeljstva i državne imovine
+    licence: Otvorena dozvola RH
+    url: https://data.gov.hr/ckan/hr/dataset/geohazardi
+    wfs_type: RGN_MGIPU_Public:RGN_nepovoljno_za_gradnju
+    year: 2021
+    resolution: poligoni studije
+    coverage: banovina
+
+  groundwater:
+    title: Dubina podzemne vode
+    publisher: Ministarstvo prostornoga uređenja, graditeljstva i državne imovine
+    licence: Otvorena dozvola RH
+    url: https://data.gov.hr/ckan/hr/dataset/geohazardi
+    wfs_type: RGN_MGIPU_Public:RGN_podzemna_voda_dubina
+    year: 2021
+    resolution: poligoni studije
+    coverage: banovina
+    note: atribut dubine još nije provjeren
+
+  addresses:
+    title: Adrese INSPIRE
+    publisher: Državna geodetska uprava
+    licence: Otvorena dozvola RH
+    url: https://data.gov.hr/ckan/hr/dataset/adrese-inspire
+    download: https://geoportal.dgu.hr/services/atom/INSPIRE_Addresses_(AD).zip
+    coverage: croatia
+
+coverages:
+  croatia: [13.2, 42.3, 19.65, 46.6]
+  banovina: [15.7298, 44.9575, 16.9236, 45.6799]
