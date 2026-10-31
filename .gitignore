@@ -1,4 +1,8 @@
 .DS_Store
+# Claude Code tooling (kept local, not published)
+CLAUDE.md
+.claude/
+misc/coding-team/
 __pycache__/
 *.pyc
 .venv/
