@@ -1,4 +1,4 @@
-"""Deterministic risk rules (SPEC section 6, decisions D4 and D13).
+"""Deterministic risk rules (SPEC section 6, decisions D4, D13 and D16).
 
 Every function maps raw source values to a level. No weighting, no AI.
 """
@@ -129,6 +129,27 @@ def unfavourable_level(inside: bool, in_coverage: bool) -> HazardResult:
         return HazardResult("unfavourable", Level.NO_DATA, "unfavourable",
                             notes=["Izvan obuhvata studije (Banovina)."])
     return HazardResult("unfavourable", Level.HIGH if inside else Level.NONE, "unfavourable")
+
+
+def groundwater_level(hit: dict | None, in_coverage: bool) -> HazardResult:
+    """hit: {'dubina_do': float, 'datum_mjerenja': str | None, 'udaljenost_m': int} from nearest well <= 1 km."""
+    if not in_coverage:
+        return HazardResult("groundwater", Level.NO_DATA, "groundwater",
+                            notes=["Izvan obuhvata studije (Banovina)."])
+    if hit is None or hit.get("dubina_do") is None:
+        return HazardResult("groundwater", Level.NO_DATA, "groundwater",
+                            notes=["Nema točke mjerenja podzemne vode unutar 1 km."])
+    depth = float(hit["dubina_do"])
+    if depth < 1.5:
+        level = Level.HIGH
+    elif depth <= 3.0:
+        level = Level.MEDIUM
+    else:
+        level = Level.LOW
+    return HazardResult(
+        "groundwater", level, "groundwater", dict(hit),
+        ["Točkasto mjerenje u blizini lokacije (najbliža bušotina/zdenac unutar 1 km)."],
+    )
 
 
 # --- summary ----------------------------------------------------------------

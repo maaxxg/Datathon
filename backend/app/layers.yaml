@@ -85,9 +85,9 @@ layers:
     url: https://data.gov.hr/ckan/hr/dataset/geohazardi
     wfs_type: RGN_MGIPU_Public:RGN_podzemna_voda_dubina
     year: 2021
-    resolution: poligoni studije
+    resolution: točkasta mjerenja (611 točaka, atribut dubina_do u m, najbliža bušotina/zdenac unutar 1 km)
     coverage: banovina
-    note: atribut dubine još nije provjeren
+    classes: ["< 1,5 m (visoko)", "1,5–3,0 m (srednje)", "> 3,0 m (nisko)"]
 
   addresses:
     title: Adrese INSPIRE

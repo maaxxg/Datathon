@@ -1,8 +1,8 @@
 import pytest
 
 from app.risk_rules import (
-    Level, combine_flood, flood_efas_level, flood_hv_level, most_significant,
-    seismic_level, susceptibility_level, unfavourable_level,
+    Level, combine_flood, flood_efas_level, flood_hv_level, groundwater_level,
+    most_significant, seismic_level, susceptibility_level, unfavourable_level,
 )
 
 
@@ -64,6 +64,15 @@ def test_unfavourable():
     assert unfavourable_level(True, True).level is Level.HIGH
     assert unfavourable_level(False, True).level is Level.NONE
     assert unfavourable_level(True, False).level is Level.NO_DATA
+
+
+def test_groundwater():
+    assert groundwater_level({"dubina_do": 0.8, "udaljenost_m": 85}, True).level is Level.HIGH
+    assert groundwater_level({"dubina_do": 1.5, "udaljenost_m": 120}, True).level is Level.MEDIUM
+    assert groundwater_level({"dubina_do": 3.0, "udaljenost_m": 120}, True).level is Level.MEDIUM
+    assert groundwater_level({"dubina_do": 3.5, "udaljenost_m": 200}, True).level is Level.LOW
+    assert groundwater_level(None, True).level is Level.NO_DATA
+    assert groundwater_level({"dubina_do": 0.5, "udaljenost_m": 50}, False).level is Level.NO_DATA
 
 
 def test_most_significant_tie_break_prefers_flood():

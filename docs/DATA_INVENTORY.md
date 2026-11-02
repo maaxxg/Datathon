@@ -40,7 +40,7 @@ Petrinja 45.4375/16.2739, Sisak 45.4840/16.3740, Karlovac 45.4870/15.5480, Gunja
 ## Što još nije provjereno
 
 - gis3/gis4.mgipu.hr (testiran samo gis2; gis1 vraća 502). Treba fallback na više hostova.
-- Atributi slojeva `podzemna_voda_dubina`, `nepovoljno_za_gradnju` (prazni `properties` na testnoj točki) i inventara.
+- Atributi slojeva `podzemna_voda_dubina` (provjereno 2. 11.: 611 `Point` značajki s atributima `dubina_do` u m i `datum_mjerenja`), `nepovoljno_za_gradnju` (provjereno 2. 11.: 1 `MultiPolygon` značajka bez dodatnih atributa) i inventara (provjereno 2. 11.).
 - Rezolucija DMR GeoTIFF-a i sadržaj adresnog GML-a (datoteke nisu preuzete).
 - HV sloj Natura 2000 (GetFeatureInfo).
 - Uvjeti korištenja na stranicama Hrvatskih voda (u Capabilities piše NONE, ali skup nije objavljen na data.gov.hr).

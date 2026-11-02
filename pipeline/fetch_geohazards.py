@@ -59,7 +59,7 @@ def main() -> None:
             t0 = time.perf_counter()
             fc = fetch_layer(client, type_name)
             path = out / f"{key}.geojson"
-            path.write_text(json.dumps(fc, ensure_ascii=False))
+            path.write_text(json.dumps(fc, ensure_ascii=False), encoding="utf-8")
             attrs = sorted({k for f in fc["features"] for k in (f.get("properties") or {})})
             print(f"{key}: {len(fc['features'])} features, attrs={attrs}, "
                   f"{time.perf_counter() - t0:.1f}s -> {path}")

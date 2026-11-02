@@ -12,7 +12,8 @@ from fastapi import FastAPI, HTTPException, Query
 from .geohazards import SUSCEPTIBILITY_LAYERS, Geohazards, in_banovina
 from .hv_flood import HVFloodClient
 from .risk_rules import (
-    HazardResult, Level, flood_hv_level, most_significant, susceptibility_level, unfavourable_level,
+    HazardResult, Level, flood_hv_level, groundwater_level, most_significant,
+    susceptibility_level, unfavourable_level,
 )
 
 DATA_DIR = Path(os.environ.get("GEORIZIK_DATA", Path(__file__).resolve().parents[2] / "data"))
@@ -66,7 +67,8 @@ async def report(lat: float = Query(..., ge=-90, le=90), lon: float = Query(...,
     for layer in SUSCEPTIBILITY_LAYERS:
         value = geo.susceptibility(layer, lat, lon) if covered else None
         results.append(susceptibility_level(layer, value, covered))
-    results.append(unfavourable_level(geo.inside("unfavourable", lat, lon), covered))
+    results.append(unfavourable_level(geo.inside("unfavourable", lat, lon) if covered else False, covered))
+    results.append(groundwater_level(geo.nearest_groundwater(lat, lon) if covered else None, covered))
     # Seismic and EFAS are integrated later (PLAN: 1.-2. 11.).
     results.append(HazardResult("seismic", Level.NO_DATA, "seismic", notes=["Izvor još nije integriran."]))
 
