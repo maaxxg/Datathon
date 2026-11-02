@@ -1,4 +1,4 @@
-"""Geo-rizik API (vertical prototype: HV floods + Banovina geohazards)."""
+"""Geo-rizik API (vertical prototype: HV floods + Banovina geohazards + address geocoder)."""
 from __future__ import annotations
 
 import os
@@ -9,6 +9,7 @@ from pathlib import Path
 import yaml
 from fastapi import FastAPI, HTTPException, Query
 
+from .geocoder import AddressGeocoder
 from .geohazards import SUSCEPTIBILITY_LAYERS, Geohazards, in_banovina
 from .hv_flood import HVFloodClient
 from .risk_rules import (
@@ -28,7 +29,9 @@ state: dict = {}
 async def lifespan(_: FastAPI):
     state["hv"] = HVFloodClient()
     state["geo"] = Geohazards(DATA_DIR / "geohazards")
+    state["geocoder"] = AddressGeocoder(DATA_DIR / "addresses.sqlite")
     yield
+    state["geocoder"].close()
     await state["hv"].aclose()
 
 
@@ -45,12 +48,25 @@ def serialise(r: HazardResult) -> dict:
 
 @app.get("/api/health")
 async def health() -> dict:
-    return {"status": "ok", "geohazards_loaded": state["geo"].available()}
+    return {
+        "status": "ok",
+        "geohazards_loaded": state["geo"].available(),
+        "addresses_loaded": state["geocoder"].available(),
+    }
 
 
 @app.get("/api/sources")
 async def sources() -> dict:
     return CATALOGUE
+
+
+@app.get("/api/addresses")
+async def addresses(q: str = Query("", min_length=0, max_length=120), limit: int = Query(10, ge=1, le=50)) -> dict:
+    geocoder: AddressGeocoder = state["geocoder"]
+    return {
+        "available": geocoder.available(),
+        "results": geocoder.search(q, limit=limit) if len(q.strip()) >= 2 else [],
+    }
 
 
 @app.get("/api/report")
