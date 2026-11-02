@@ -1,0 +1,260 @@
+# Benchmark of 22 Croatian natural-language queries for evaluating open LLMs (PLAN 2. 11., D7, D8, D9, D18).
+# Each entry contains the user query (`text`) and the expected deterministic representation (`expected`).
+
+queries:
+  - id: q01_petrinja_no_flood_low_landslide
+    text: "Pronađi mi područja oko Petrinje bez poplava i s niskom podložnosti klizištima."
+    expected:
+      intent: find_area
+      region: petrinja
+      filters:
+        - { hazard: flood, max_level: nema_prema_karti }
+        - { hazard: landslide, max_level: nisko }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q02_sisak_no_flood_no_liquefaction
+    text: "Tražim lokacije u Sisku koje nisu u poplavnoj zoni i imaju nisku podložnost likvefakciji."
+    expected:
+      intent: find_area
+      region: sisak
+      filters:
+        - { hazard: flood, max_level: nema_prema_karti }
+        - { hazard: liquefaction, max_level: nisko }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q03_glina_safe_for_building
+    text: "Gdje u Glini je povoljno za gradnju, bez klizišta i bez vrtača?"
+    expected:
+      intent: find_area
+      region: glina
+      filters:
+        - { hazard: unfavourable, max_level: nema_prema_karti }
+        - { hazard: landslide, max_level: nisko }
+        - { hazard: sinkhole, max_level: nisko }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q04_banovina_deep_groundwater_no_flood
+    text: "Pokaži područja na Banovini bez opasnosti od poplava i s dubokom podzemnom vodom (nizak rizik)."
+    expected:
+      intent: find_area
+      region: banovina
+      filters:
+        - { hazard: flood, max_level: nema_prema_karti }
+        - { hazard: groundwater, max_level: nisko }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q05_petrinja_with_unsupported_price
+    text: "Pronađi područja u Petrinji bez poplava i s cijenom kvadrata ispod 1500 eura."
+    expected:
+      intent: find_area
+      region: petrinja
+      filters:
+        - { hazard: flood, max_level: nema_prema_karti }
+      locations: []
+      layer: null
+      unsupported: ["cijene nekretnina"]
+
+  - id: q06_sisak_with_unsupported_fire_and_noise
+    text: "Tražim mirno područje u Sisku bez buke, bez šumskih požara i s niskim rizikom od poplave."
+    expected:
+      intent: find_area
+      region: sisak
+      filters:
+        - { hazard: flood, max_level: nisko }
+      locations: []
+      layer: null
+      unsupported: ["buka", "požari"]
+
+  - id: q07_hrvatska_kostajnica_landslide_flood
+    text: "Koja su područja u Hrvatskoj Kostajnici izvan poplava i s najviše niskom podložnosti klizištima?"
+    expected:
+      intent: find_area
+      region: hrvatska kostajnica
+      filters:
+        - { hazard: flood, max_level: nema_prema_karti }
+        - { hazard: landslide, max_level: nisko }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q08_lekenik_all_low
+    text: "Nađi zone u općini Lekenik gdje nema poplava, nije nepovoljno za gradnju i likvefakcija je niska."
+    expected:
+      intent: find_area
+      region: lekenik
+      filters:
+        - { hazard: flood, max_level: nema_prema_karti }
+        - { hazard: unfavourable, max_level: nema_prema_karti }
+        - { hazard: liquefaction, max_level: nisko }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q09_sunja_sinkholes
+    text: "Gdje oko Sunje nema opasnosti od vrtača i poplava?"
+    expected:
+      intent: find_area
+      region: sunja
+      filters:
+        - { hazard: sinkhole, max_level: nisko }
+        - { hazard: flood, max_level: nema_prema_karti }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q10_outside_banovina_split_landslide
+    text: "Pronađi područja u Splitu bez poplava i bez klizišta."
+    expected:
+      intent: find_area
+      region: split
+      filters:
+        - { hazard: flood, max_level: nema_prema_karti }
+        - { hazard: landslide, max_level: nisko }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q11_outside_banovina_osijek_low_seismic
+    text: "Pokaži područja oko Osijeka s niskom seizmičnosti i bez poplava."
+    expected:
+      intent: find_area
+      region: osijek
+      filters:
+        - { hazard: seismic, max_level: niska_seizmicnost }
+        - { hazard: flood, max_level: nema_prema_karti }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q12_outside_banovina_zagreb_flood_and_air
+    text: "Gdje u Zagrebu nema poplava i kvaliteta zraka je odlična?"
+    expected:
+      intent: find_area
+      region: zagreb
+      filters:
+        - { hazard: flood, max_level: nema_prema_karti }
+      locations: []
+      layer: null
+      unsupported: ["kvaliteta zraka"]
+
+  - id: q13_petrinja_medium_flood_ok
+    text: "Pokaži dijelove Petrinje gdje je podložnost klizištima niska, a poplava najviše srednja."
+    expected:
+      intent: find_area
+      region: petrinja
+      filters:
+        - { hazard: landslide, max_level: nisko }
+        - { hazard: flood, max_level: srednje }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q14_topusko_groundwater_and_sinkhole
+    text: "Pronađi lokacije u Topuskom s niskom podložnosti vrtačama i dubokom podzemnom vodom."
+    expected:
+      intent: find_area
+      region: topusko
+      filters:
+        - { hazard: sinkhole, max_level: nisko }
+        - { hazard: groundwater, max_level: nisko }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q15_compare_petrinja_and_sisak
+    text: "Usporedi Ulicu Matije Gupca 12 u Petrinji s Rimskom ulicom 19 u Sisku."
+    expected:
+      intent: compare_locations
+      region: null
+      filters: []
+      locations:
+        - "Ulica Matije Gupca 12, Petrinja"
+        - "Rimska ulica 19, Sisak"
+      layer: null
+      unsupported: []
+
+  - id: q16_compare_glina_and_petrinja
+    text: "Usporedi Ulicu kralja Tomislava 3 u Glini i Radićevu 5 u Petrinji."
+    expected:
+      intent: compare_locations
+      region: null
+      filters: []
+      locations:
+        - "Ulica kralja Tomislava 3, Glina"
+        - "Radićeva 5, Petrinja"
+      layer: null
+      unsupported: []
+
+  - id: q17_compare_zagreb_and_karlovac
+    text: "Napravi usporedbu rizika za Savsku cestu 10 u Zagrebu i Obala Владимира Nazora 1 u Karlovcu."
+    expected:
+      intent: compare_locations
+      region: null
+      filters: []
+      locations:
+        - "Savska cesta 10, Zagreb"
+        - "Obala Vladimira Nazora 1, Karlovac"
+      layer: null
+      unsupported: []
+
+  - id: q18_show_layer_liquefaction
+    text: "Uključi na karti sloj podložnosti likvefakciji tla."
+    expected:
+      intent: show_layer
+      region: null
+      filters: []
+      locations: []
+      layer: liquefaction
+      unsupported: []
+
+  - id: q19_show_layer_flood_hv
+    text: "Pokaži mi na karti službeni sloj opasnosti od poplava Hrvatskih voda."
+    expected:
+      intent: show_layer
+      region: null
+      filters: []
+      locations: []
+      layer: flood_hv
+      unsupported: []
+
+  - id: q20_show_layer_landslide
+    text: "Prikaži sloj klizišta na Banovini."
+    expected:
+      intent: show_layer
+      region: banovina
+      filters: []
+      locations: []
+      layer: landslide
+      unsupported: []
+
+  - id: q21_dvor_no_unfavourable_no_flood
+    text: "Pronađi mjesta u Dvoru koja nisu nepovoljna za gradnju i nemaju poplava."
+    expected:
+      intent: find_area
+      region: dvor
+      filters:
+        - { hazard: unfavourable, max_level: nema_prema_karti }
+        - { hazard: flood, max_level: nema_prema_karti }
+      locations: []
+      layer: null
+      unsupported: []
+
+  - id: q22_petrinja_with_school_distance_unsupported
+    text: "Nađi kuću u Petrinji blizu osnovne škole, bez poplava i bez likvefakcije."
+    expected:
+      intent: find_area
+      region: petrinja
+      filters:
+        - { hazard: flood, max_level: nema_prema_karti }
+        - { hazard: liquefaction, max_level: nisko }
+      locations: []
+      layer: null
+      unsupported: ["udaljenost od osnovne škole"]
