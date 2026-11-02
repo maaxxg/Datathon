@@ -1,4 +1,4 @@
-"""Geo-rizik API (vertical prototype: HV floods + Banovina geohazards)."""
+"""Geo-rizik API (vertical prototype: HV floods + Banovina geohazards + explanations)."""
 from __future__ import annotations
 
 import os
@@ -14,6 +14,7 @@ from .hv_flood import HVFloodClient
 from .risk_rules import (
     HazardResult, Level, flood_hv_level, most_significant, susceptibility_level, unfavourable_level,
 )
+from .templates import build_summary, explain_hazard, recommended_actions
 
 DATA_DIR = Path(os.environ.get("GEORIZIK_DATA", Path(__file__).resolve().parents[2] / "data"))
 CATALOGUE = yaml.safe_load((Path(__file__).parent / "layers.yaml").read_text(encoding="utf-8"))
@@ -38,6 +39,7 @@ app = FastAPI(title="Geo-rizik API", version="0.1.0", lifespan=lifespan)
 def serialise(r: HazardResult) -> dict:
     d = asdict(r)
     d["level"] = r.level.value
+    d["explanation"] = explain_hazard(r)
     layer = CATALOGUE["layers"].get(r.source, {})
     d["source"] = {k: layer.get(k) for k in ("title", "publisher", "licence", "url", "year", "resolution")}
     return d
@@ -74,6 +76,8 @@ async def report(lat: float = Query(..., ge=-90, le=90), lon: float = Query(...,
     return {
         "location": {"lat": lat, "lon": lon},
         "most_significant": serialise(top) if top else None,
+        "summary": build_summary(results, top, in_banovina(lat, lon)),
         "hazards": [serialise(r) for r in results],
+        "recommended_actions": recommended_actions(results),
         "disclaimer": DISCLAIMER,
     }
