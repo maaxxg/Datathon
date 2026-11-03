@@ -130,9 +130,11 @@ def seismic_level(ag_g: float | None, distance_km: float | None = None, source: 
 SUSCEPTIBILITY = {"niska": Level.LOW, "srednja": Level.MEDIUM, "visoka": Level.HIGH}
 
 
-def susceptibility_level(hazard: str, value: str | None, in_coverage: bool) -> HazardResult:
+def susceptibility_level(hazard: str, value: str | None, in_coverage: bool, layer_loaded: bool = True) -> HazardResult:
     if not in_coverage:
         return HazardResult(hazard, Level.NO_DATA, hazard, notes=["Izvan obuhvata studije (Banovina)."])
+    if not layer_loaded:
+        return HazardResult(hazard, Level.NO_DATA, hazard, notes=["Sloj nije učitan."])
     if value is None:
         return HazardResult(hazard, Level.NO_DATA, hazard, notes=["Točka nije unutar poligona studije."])
     level = SUSCEPTIBILITY.get(value.strip().lower())
@@ -141,10 +143,12 @@ def susceptibility_level(hazard: str, value: str | None, in_coverage: bool) -> H
     return HazardResult(hazard, level, hazard, {"podloznost": value})
 
 
-def unfavourable_level(inside: bool, in_coverage: bool) -> HazardResult:
+def unfavourable_level(inside: bool, in_coverage: bool, layer_loaded: bool = True) -> HazardResult:
     if not in_coverage:
         return HazardResult("unfavourable", Level.NO_DATA, "unfavourable",
                             notes=["Izvan obuhvata studije (Banovina)."])
+    if not layer_loaded:
+        return HazardResult("unfavourable", Level.NO_DATA, "unfavourable", notes=["Sloj nije učitan."])
     return HazardResult("unfavourable", Level.HIGH if inside else Level.NONE, "unfavourable")
 
 

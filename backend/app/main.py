@@ -90,11 +90,12 @@ async def report(lat: float = Query(..., ge=-90, le=90), lon: float = Query(...,
     results: list[HazardResult] = [combine_flood(hv_res, efas_res)]
 
     geo: Geohazards = state["geo"]
-    covered = in_banovina(lat, lon) and geo.available()
+    covered = in_banovina(lat, lon)
     for layer in SUSCEPTIBILITY_LAYERS:
         value = geo.susceptibility(layer, lat, lon) if covered else None
-        results.append(susceptibility_level(layer, value, covered))
-    results.append(unfavourable_level(geo.inside("unfavourable", lat, lon) if covered else False, covered))
+        results.append(susceptibility_level(layer, value, covered, layer in geo.layers))
+    results.append(unfavourable_level(geo.inside("unfavourable", lat, lon) if covered else False, covered,
+                                      "unfavourable" in geo.layers))
     results.append(groundwater_level(
         geo.nearest_groundwater(lat, lon) if covered else None, covered, "groundwater" in geo.layers))
 

@@ -139,3 +139,26 @@ def test_groundwater_layer_not_loaded():
     r = groundwater_level(None, True, layer_loaded=False)
     assert r.level is Level.NO_DATA
     assert any("nije učitan" in n for n in r.notes)
+
+
+@pytest.mark.parametrize("inside", [False, True])
+def test_unfavourable_layer_not_loaded_is_no_data(inside):
+    r = unfavourable_level(inside, True, layer_loaded=False)
+    assert r.level is Level.NO_DATA
+    assert "nije učitan" in r.notes[0]
+
+
+def test_susceptibility_layer_not_loaded_is_no_data():
+    r = susceptibility_level("landslide", None, True, layer_loaded=False)
+    assert r.level is Level.NO_DATA
+    assert "nije učitan" in r.notes[0]
+
+
+def test_out_of_coverage_checked_before_layer_loaded():
+    assert "Izvan obuhvata" in unfavourable_level(False, False, layer_loaded=False).notes[0]
+    assert "Izvan obuhvata" in susceptibility_level("sinkhole", None, False, layer_loaded=False).notes[0]
+
+
+def test_layer_loaded_default_keeps_behaviour():
+    assert unfavourable_level(False, True).level is Level.NONE
+    assert susceptibility_level("landslide", "visoka", True).level is Level.HIGH
