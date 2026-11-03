@@ -4,7 +4,7 @@ Works without an LLM: every text and action is derived strictly from HazardResul
 """
 from __future__ import annotations
 
-from .risk_rules import FLOODED, HazardResult, Level
+from .risk_rules import FLOODED, HAZARD_ORDER, HazardResult, Level
 
 DEPTH_LABELS = {
     "d_lt_0_5": "do 0,5 m",
@@ -19,9 +19,9 @@ HAZARD_NAMES = {
     "seismic": "potresna opasnost",
     "landslide": "klizišta",
     "liquefaction": "likvefakcija tla",
-    "sinkhole": "vrtače (urušne ponikve)",
+    "sinkhole": "vrtače",
     "unfavourable": "nepovoljni uvjeti za gradnju",
-    "groundwater": "plitka podzemna voda",
+    "groundwater": "podzemna voda",
 }
 
 SUSCEPTIBILITY_DATIVE = {
@@ -30,84 +30,121 @@ SUSCEPTIBILITY_DATIVE = {
     "sinkhole": "nastanku vrtača",
 }
 
+PODLOZNOST_GENITIVE = {"niska": "niske", "srednja": "srednje", "visoka": "visoke"}
+
+LEVEL_LABELS = {
+    Level.HIGH: "visoko",
+    Level.MEDIUM: "srednje",
+    Level.LOW: "nisko",
+    Level.NONE: "nema prema karti",
+    Level.NO_DATA: "nema podataka",
+    Level.SEISMIC_VERY_LOW: "vrlo niska seizmičnost",
+    Level.SEISMIC_LOW: "niska seizmičnost",
+    Level.SEISMIC_ABOVE_LOW: "iznad praga niske seizmičnosti",
+}
+
+FALLBACK_TEXT = "Podatak je obrađen prema javno dostupnim izvorima."
+
+
+def _num(x: float, nd: int) -> str:
+    """Format a number with a decimal comma."""
+    return f"{x:.{nd}f}".replace(".", ",")
+
+
+def _hv_scenario_text(label: str, depth_class: str) -> str:
+    depth = DEPTH_LABELS.get(depth_class, depth_class)
+    return (f"Prema karti opasnosti od poplava Hrvatskih voda (2019.) lokacija je u zoni {label} "
+            f"vjerojatnosti poplave, procijenjena dubina vode: {depth}.")
+
+
+def _explain_flood_hv(r: HazardResult) -> str | None:
+    d = r.detail
+    if r.level is Level.NONE:
+        return ("Prema kartama opasnosti od poplava Hrvatskih voda (2019.) lokacija je izvan poplavnih zona "
+                "(poplavnih područja) za sva tri scenarija (velika, srednja i mala vjerojatnost).")
+    if any(v == "permanent_water" for v in d.values()):
+        return "Prema karti Hrvatskih voda (2019.) točka se nalazi na stalnoj vodenoj površini."
+    if d.get("velika") in FLOODED:
+        return _hv_scenario_text("velike", d["velika"])
+    if d.get("srednja") in FLOODED:
+        return _hv_scenario_text("srednje", d["srednja"])
+    if d.get("mala") in FLOODED:
+        return (_hv_scenario_text("male", d["mala"])[:-1]
+                + "; izvan zona velike i srednje vjerojatnosti.")
+    return None
+
+
+def _explain_flood_efas(r: HazardResult) -> str:
+    if r.level is Level.NONE:
+        return ("Procjena (europski model EFAS, 90 m, okvirno): dubina plavljenja je 0 m za povratna "
+                "razdoblja 10, 100 i 500 god. Model se koristi jer karta Hrvatskih voda ovdje nema podataka.")
+    parts = [f"RP{rp[2:]}: {_num(val, 2)} m" for rp, val in r.detail.items() if val and val > 0]
+    joined = ", ".join(parts)
+    return (f"Procjena (europski model EFAS, 90 m, okvirno): moguće je plavljenje; dubine po povratnom razdoblju "
+            f"(RP, u godinama): {joined}. Model se koristi jer karta Hrvatskih voda ovdje nema podataka.")
+
+
+def _explain_seismic(r: HazardResult) -> str | None:
+    ag = r.detail.get("ag_g")
+    if not isinstance(ag, (int, float)):
+        return None
+    ag_txt = _num(ag, 3)
+    dist = r.detail.get("udaljenost_km")
+    tail = f" Najbliža točka mreže udaljena je {_num(dist, 1)} km." if isinstance(dist, (int, float)) else ""
+    base = (f"ag = {ag_txt} g za povratno razdoblje od 475 god. (europski model ESHM20, okvirno)")
+    if r.level is Level.SEISMIC_VERY_LOW:
+        return f"Potresna opasnost: vrlo niska seizmičnost prema Eurokodu 8 ({base}; prag ≤ 0,04 g).{tail}"
+    if r.level is Level.SEISMIC_LOW:
+        return f"Potresna opasnost: niska seizmičnost prema Eurokodu 8 ({base}; raspon 0,04 – 0,08 g).{tail}"
+    if r.level is Level.SEISMIC_ABOVE_LOW:
+        return (f"Potresna opasnost: iznad praga niske seizmičnosti prema Eurokodu 8 ({base}; "
+                f"> 0,08 g).{tail}")
+    return None
+
+
+def _explain_groundwater(r: HazardResult) -> str | None:
+    depth = r.detail.get("dubina_do")
+    if not isinstance(depth, (int, float)):
+        return None
+    if depth < 0:
+        what = f"podzemnu vodu iznad razine terena ({_num(abs(depth), 2)} m)"
+    else:
+        what = f"podzemnu vodu na dubini {_num(depth, 2)} m"
+    text = f"Najbliže mjerenje (MPGI, 2021.) bilježi {what}."
+    if r.notes:
+        return text + " " + " ".join(r.notes)
+    dist = r.detail.get("udaljenost_m")
+    return text + (f" Bušotina je udaljena {dist} m." if dist is not None else "")
+
 
 def explain_hazard(r: HazardResult) -> str:
     """Return a plain-language Croatian explanation for a single HazardResult."""
+    if r.level is Level.NO_DATA:
+        name = HAZARD_NAMES.get(r.hazard, r.hazard)
+        return " ".join([f"Nema podataka za {name}.", *r.notes])
+
+    text: str | None = None
     if r.hazard == "flood" and r.source == "flood_hv":
-        if r.level is Level.NO_DATA:
-            return "Za ovu lokaciju podatak iz servisa Hrvatskih voda trenutno nije dostupan."
-        if r.level is Level.NONE:
-            return ("Prema službenim kartama opasnosti od poplava Hrvatskih voda (2019.), "
-                    "lokacija je izvan poplavnih zona za veliku, srednju i malu vjerojatnost.")
-        if any(v == "permanent_water" for v in r.detail.values()):
-            return "Prema karti Hrvatskih voda (2019.), točka se nalazi na stalnoj vodenoj površini."
-        if r.detail.get("velika") in FLOODED:
-            d = DEPTH_LABELS.get(r.detail["velika"], r.detail["velika"])
-            return (f"Lokacija je u zoni velike vjerojatnosti poplave (povratno razdoblje 25 godina) "
-                    f"s procijenjenom dubinom vode {d}.")
-        if r.detail.get("srednja") in FLOODED:
-            d = DEPTH_LABELS.get(r.detail["srednja"], r.detail["srednja"])
-            return (f"Lokacija je u zoni srednje vjerojatnosti poplave (100-godišnje vode) "
-                    f"s procijenjenom dubinom vode {d}.")
-        if r.detail.get("mala") in FLOODED:
-            d = DEPTH_LABELS.get(r.detail["mala"], r.detail["mala"])
-            return (f"Lokacija je izvan zona čestih i 100-godišnjih poplava, ali ulazi u zonu male "
-                    f"vjerojatnosti (ekstremne poplave) s procijenjenom dubinom vode {d}.")
-
-    if r.hazard == "flood" and r.source == "flood_efas":
-        if r.level is Level.NONE:
-            return ("Prema europskom modelu riječnih poplava EFAS (rezolucija 90 m), "
-                    "na lokaciji nije modelirano plavljenje za povratna razdoblja do 500 godina.")
-        parts = [f"RP{rp[2:]}: {val:.2f} m" for rp, val in r.detail.items() if val and val > 0]
-        joined = ", ".join(parts) if parts else "zabilježena dubina > 0 m"
-        return (f"Okvirni europski model EFAS (90 m) upućuje na mogućnost plavljenja ({joined}); "
-                "koristi se jer službena karta Hrvatskih voda ovdje nema podatka.")
-
-    if r.hazard == "seismic":
-        ag = r.detail.get("ag_g")
-        ag_txt = f"{ag:.3f} g".replace(".", ",") if isinstance(ag, (int, float)) else "nepoznato"
-        if r.level is Level.SEISMIC_VERY_LOW:
-            return (f"Vrlo niska seizmičnost prema Eurokodu 8 (referentno vršno ubrzanje tla "
-                    f"ag = {ag_txt} ≤ 0,04 g za povratno razdoblje od 475 godina).")
-        if r.level is Level.SEISMIC_LOW:
-            return (f"Niska seizmičnost prema Eurokodu 8 (ag = {ag_txt}, u rasponu 0,04–0,08 g "
-                    "za povratno razdoblje od 475 godina).")
-        if r.level is Level.SEISMIC_ABOVE_LOW:
-            return (f"Potresna opasnost je iznad praga niske seizmičnosti prema Eurokodu 8 "
-                    f"(ag = {ag_txt} > 0,08 g za 475 godina); pri gradnji i rekonstrukciji "
-                    "obvezan je puni protupotresni proračun.")
-        return "Podatak o referentnom vršnom ubrzanju tla (potresnoj opasnosti) još nije dostupan."
-
-    if r.hazard in SUSCEPTIBILITY_DATIVE:
-        dativ = SUSCEPTIBILITY_DATIVE[r.hazard]
-        if r.level is Level.NO_DATA:
-            return (f"Podatak o podložnosti {dativ} nije dostupan (studija MPGI-ja iz 2021. "
-                    "pokriva područje Banovine ili točka nije unutar poligona studije).")
-        if r.level is Level.NONE:
-            return f"Prema studiji geohazarda (MPGI, 2021.), na lokaciji nije utvrđena podložnost {dativ}."
-        raw = r.detail.get("podloznost", r.level.value)
-        return (f"Prema studiji geohazarda (MPGI, 2021.), lokacija se nalazi u zoni "
-                f"s razredom podložnosti {dativ}: {raw}.")
-
-    if r.hazard == "unfavourable":
-        if r.level is Level.NO_DATA:
-            return "Podatak o područjima nepovoljnima za gradnju dostupan je samo za obuhvat studije u Banovini."
+        text = _explain_flood_hv(r)
+    elif r.hazard == "flood" and r.source == "flood_efas":
+        text = _explain_flood_efas(r)
+    elif r.hazard == "seismic":
+        text = _explain_seismic(r)
+    elif r.hazard in SUSCEPTIBILITY_DATIVE:
+        raw = r.detail.get("podloznost")
+        if raw is not None:
+            gen = PODLOZNOST_GENITIVE.get(str(raw).strip().lower(), str(raw))
+            text = (f"Prema studiji geohazarda MPGI-ja (2021.) lokacija je u zoni {gen} podložnosti "
+                    f"{SUSCEPTIBILITY_DATIVE[r.hazard]} (razred u studiji: {raw}).")
+    elif r.hazard == "unfavourable":
         if r.level is Level.HIGH:
-            return ("Lokacija se nalazi unutar poligona koji je u studiji geohazarda (MPGI, 2021.) "
+            text = ("Lokacija se nalazi unutar poligona koji je u studiji geohazarda (MPGI, 2021.) "
                     "izdvojen kao područje nepovoljno za gradnju.")
-        return "Lokacija nije unutar poligona izdvojenih kao nepovoljna za gradnju (MPGI, 2021.)."
-
-    if r.hazard == "groundwater":
-        if r.level is Level.NO_DATA:
-            return "Nema dostupnog mjerenja dubine podzemne vode u radijusu od 1 km (studija Banovina, 2021.)."
-        depth = r.detail.get("dubina_do")
-        dist = r.detail.get("udaljenost_m")
-        date = r.detail.get("datum_mjerenja") or "2021."
-        depth_txt = f"{depth:.2f} m".replace(".", ",") if isinstance(depth, (int, float)) else f"{depth} m"
-        return (f"Najbliže točkasto mjerenje podzemne vode (udaljeno {dist} m, datum {date}) "
-                f"bilježi razinu podzemne vode na dubini od {depth_txt}.")
-
-    return "Podatak je obrađen prema javno dostupnim izvorima."
+        elif r.level is Level.NONE:
+            text = "Lokacija nije unutar poligona izdvojenih kao nepovoljna za gradnju (MPGI, 2021.)."
+    elif r.hazard == "groundwater":
+        text = _explain_groundwater(r)
+    return text or FALLBACK_TEXT
 
 
 def build_summary(results: list[HazardResult], top: HazardResult | None, in_banovina_coverage: bool) -> str:
@@ -115,16 +152,26 @@ def build_summary(results: list[HazardResult], top: HazardResult | None, in_bano
     scope_sentence = (
         "Lokacija se nalazi unutar obuhvata detaljne studije geohazarda za Banovinu (MPGI, 2021.)."
         if in_banovina_coverage
-        else "Za ovu lokaciju dostupni su nacionalni slojevi (poplave i potres), dok detaljni geohazardi "
-             "MPGI-ja pokrivaju samo Sisačko-moslavačku županiju (Banovinu)."
+        else "Detaljni podaci o geohazardima (MPGI, 2021.) postoje samo za područje Banovine."
     )
+    order = {h: i for i, h in enumerate(HAZARD_ORDER)}
+    ordered = sorted(results, key=lambda r: order.get(r.hazard, len(order)))
+    no_data = [HAZARD_NAMES.get(r.hazard, r.hazard) for r in ordered if r.level is Level.NO_DATA]
+    with_data = [HAZARD_NAMES.get(r.hazard, r.hazard) for r in ordered if r.level is not Level.NO_DATA]
+    no_data_sentence = f"Nema podataka za: {', '.join(no_data)}." if no_data else ""
+
+    if results and not with_data:
+        return f"Za ovu lokaciju trenutno nema dostupnih podataka o promatranim opasnostima. {scope_sentence}"
     if top is None:
-        return (f"Prema dostupnim kartama na odabranoj lokaciji nije utvrđena povišena opasnost. "
-                f"{scope_sentence}")
+        if no_data:
+            return (f"Prema dostupnim kartama nije utvrđena povišena opasnost za: {', '.join(with_data)}. "
+                    f"{no_data_sentence} {scope_sentence}")
+        return f"Prema dostupnim kartama na odabranoj lokaciji nije utvrđena povišena opasnost. {scope_sentence}"
     hazard_label = HAZARD_NAMES.get(top.hazard, top.hazard)
-    level_label = top.level.value.replace("_", " ")
-    return (f"Najznačajniji utvrđeni rizik na lokaciji: {hazard_label} (razina: {level_label}). "
-            f"{explain_hazard(top)} {scope_sentence}")
+    level_label = LEVEL_LABELS.get(top.level, top.level.value)
+    parts = [f"Najznačajniji utvrđeni rizik na lokaciji: {hazard_label} (razina: {level_label}).",
+             explain_hazard(top), no_data_sentence, scope_sentence]
+    return " ".join(p for p in parts if p)
 
 
 def recommended_actions(results: list[HazardResult]) -> list[dict]:
@@ -138,23 +185,23 @@ def recommended_actions(results: list[HazardResult]) -> list[dict]:
             "hazard": "flood",
             "title": "Provjerite vodopravne uvjete i kotu prizemlja",
             "description": (
-                "Prije kupnje ili gradnje zatražite službene vodopravne uvjete od Hrvatskih voda te "
+                "Prije gradnje ili rekonstrukcije raspitajte se o vodopravnim uvjetima kod Hrvatskih voda te "
                 "provjerite izvedbu hidroizolacije, povratnih ventila odvodnje i visinu poda prizemlja."
             ),
             "institution": "Hrvatske vode",
-            "url": "https://www.voda.hr/hr/karte-opasnosti-od-poplava-karte-rizika-od-poplava-2019",
+            "url": "https://www.voda.hr/",
         })
 
     seismic = by_hazard.get("seismic")
     if seismic and seismic.level in (Level.SEISMIC_ABOVE_LOW, Level.SEISMIC_LOW):
         actions.append({
             "hazard": "seismic",
-            "title": "Provjerite godinu gradnje i potresnu otpornost zgrade",
+            "title": "Provjerite potresnu otpornost zgrade",
             "description": (
-                "Zgrade građene prije 1964. (bez protupotresnih propisa) ili prije uvođenja Eurokoda 8 "
-                "zahtijevaju pregled ovlaštenog inženjera građevinarstva, osobito ako postoje pukotine ili dogradnje."
+                "Preporučuje se provjera potresne otpornosti zgrade uz ovlaštenog inženjera građevinarstva, "
+                "osobito kod starijih zgrada, pukotina ili dogradnji."
             ),
-            "institution": "MPGI / Hrvatska komora inženjera građevinarstva",
+            "institution": "Ministarstvo prostornoga uređenja, graditeljstva i državne imovine",
             "url": "https://mpgi.gov.hr/",
         })
 
@@ -170,18 +217,18 @@ def recommended_actions(results: list[HazardResult]) -> list[dict]:
                 "Studija geohazarda (MPGI) regionalnog je karaktera. Za konkretnu česticu preporučuje se "
                 "terenski uvid geomehaničara radi provjere stabilnosti padine, temelja, drenaže i podzemne vode."
             ),
-            "institution": "Informacijski sustav prostornog uređenja (ISPU) / Hrvatski geološki institut",
+            "institution": "Informacijski sustav prostornog uređenja (ISPU)",
             "url": "https://ispu.mgipu.hr/",
         })
 
     actions.append({
         "hazard": "general",
-        "title": "Provjerite prostorni plan, katastar i upute civilne zaštite",
+        "title": "Provjerite podatke o katastarskoj čestici",
         "description": (
-            "Uvidom u ISPU i Uređenu zemlju provjerite uvjete gradnje na katastarskoj čestici, "
-            "a na stranicama Ravnateljstva civilne zaštite pregledajte lokalne planove djelovanja."
+            "Na portalu Uređena zemlja provjerite podatke i granice katastarske čestice "
+            "prije donošenja odluke o kupnji ili gradnji."
         ),
-        "institution": "Uređena zemlja (DGU) i Ravnateljstvo civilne zaštite",
+        "institution": "Uređena zemlja (Državna geodetska uprava)",
         "url": "https://oss.uredjenazemlja.hr/",
     })
 

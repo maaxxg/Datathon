@@ -19,7 +19,7 @@ flowchart LR
     TPL[Predlošci teksta<br/>+ kurirani koraci]
   end
   subgraph Local["Lokalni podaci (pipeline)"]
-    ADR[(adrese.sqlite)]
+    ADR[(addresses.sqlite)]
     GH[(geohazardi.geojson)]
     EFAS[(EFAS COG, RH)]
     ESHM[(ESHM20 raster/tablica)]
@@ -41,7 +41,7 @@ flowchart LR
 ## 2. Tok podataka
 
 **Pipeline (jednokratno, `pipeline/`, Python):**
-1. DGU Adrese INSPIRE (GML, ETRS89/LAEA) → normalizacija → `adrese.sqlite` (FTS5 + WGS84 koordinate).
+1. DGU Adrese INSPIRE (GML, ETRS89/LAEA) → normalizacija → `data/addresses.sqlite` (FTS5 + WGS84 koordinate; ~1,68 mil. adresa, ~169 MB) → `GET /api/addresses?q=`.
 2. MPGI geohazardi (WFS, gis2/gis3/gis4 s rezervnim hostovima) → GeoJSON po sloju u WGS84.
 3. EFAS GeoTIFF-ovi → izrezani na RH → Cloud-Optimized GeoTIFF.
 4. ESHM20 → PGA475 za RH (format ovisi o dostupnosti; vidi rizike).

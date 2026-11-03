@@ -21,19 +21,22 @@ layers:
     licence: ODbL 1.0
     url: https://jeodpp.jrc.ec.europa.eu/ftp/public/JRC-OpenData/CEMS-EFAS/flood_hazard/
     info_url: https://doi.org/10.2905/1D128B6C-A4EE-4858-9E34-6210707F3C81
-    year: 2024
+    year: 2026
     resolution: 90 m
     coverage: croatia
-    note: koristi se samo gdje karta Hrvatskih voda nema podatka
+    note: "koristi se samo gdje karta Hrvatskih voda nema podatka; verzija 3.1.1 (5. 3. 2026; citat u README-u: Baugh et al. 2024); prikazuje samo poplave uz veće rijeke, izvan toga nema podatka; JRC copyright.txt navodi CC BY 4.0, README A02 navodi ODbL 1.0, primjenjujemo stroži (ODbL)."
 
   seismic:
-    title: Potresna opasnost (475 god.)
-    publisher: TBD (službena karta RH, PMF; rezerva ESHM20, EFEHR, CC BY 4.0)
-    licence: TBD
-    url: TBD
-    year: TBD
-    resolution: TBD
+    title: Europski model potresne opasnosti ESHM20 (PGA, 475 god.)
+    publisher: EFEHR / ETH Zürich (Danciu et al.)
+    licence: CC BY 4.0
+    url: https://efehr-services.ethz.ch/hazard/api/v1
+    info_url: https://doi.org/10.12686/a15
+    year: 2021
+    resolution: mreža ~0,1° (~10 km), referentna stijena Vs30 = 760 m/s
+    note: "Europski model (EFEHR), nije objavljen na data.gov.hr; vrijednost najbliže točke mreže ~10 km, bez interpolacije; referentna stijena Vs30 = 760 m/s (tlo tipa A prema Eurokodu 8 ima Vs30 > 800 m/s; vrijednost nije prilagođena); okvirna procjena."
     coverage: croatia
+    classes: [vrlo_niska_seizmicnost, niska_seizmicnost, iznad_praga_niske_seizmicnosti]
 
   landslide:
     title: Podložnost klizištima
@@ -85,9 +88,9 @@ layers:
     url: https://data.gov.hr/ckan/hr/dataset/geohazardi
     wfs_type: RGN_MGIPU_Public:RGN_podzemna_voda_dubina
     year: 2021
-    resolution: poligoni studije
+    resolution: točkasta mjerenja (602 bušotine; od 611 značajki odbačeno 5 rezervnih točaka i 4 bez datuma mjerenja, atribut dubina_do u m, najbliža bušotina/zdenac unutar 1 km)
     coverage: banovina
-    note: atribut dubine još nije provjeren
+    classes: ["< 1,5 m (visoko)", "1,5–3,0 m (srednje)", "> 3,0 m (nisko)"]
 
   addresses:
     title: Adrese INSPIRE
@@ -95,6 +98,8 @@ layers:
     licence: Otvorena dozvola RH
     url: https://data.gov.hr/ckan/hr/dataset/adrese-inspire
     download: https://geoportal.dgu.hr/services/atom/INSPIRE_Addresses_(AD).zip
+    year: 2026  # GML header timeStamp 2026-11-01
+    resolution: točkovni (adresna točka)
     coverage: croatia
 
 coverages:

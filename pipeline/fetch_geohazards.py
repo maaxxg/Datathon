@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -47,6 +48,22 @@ def fetch_layer(client: httpx.Client, type_name: str) -> dict:
     raise RuntimeError(f"all hosts failed for {type_name}: {last_error}")
 
 
+def drop_placeholder_points(fc: dict) -> dict:
+    """The groundwater layer has 5 placeholder Points at lat -90; drop invalid lon/lat."""
+    def ok(f: dict) -> bool:
+        g = f.get("geometry") or {}
+        if g.get("type") != "Point":
+            return True
+        lon, lat = g["coordinates"][:2]
+        return -180 <= lon <= 180 and -90 < lat < 90
+    fc["features"] = [f for f in fc["features"] if ok(f)]
+    if fc.get("features") and any("datum_mjerenja" in (f.get("properties") or {}) for f in fc["features"]):
+        # groundwater: wells without a parseable measurement date count as "no measurement"
+        fc["features"] = [f for f in fc["features"]
+                          if re.search(r"\d{1,2}\.\d{1,2}\.\d{4}", str((f.get("properties") or {}).get("datum_mjerenja") or ""))]
+    return fc
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="data/geohazards")
@@ -57,9 +74,9 @@ def main() -> None:
     with httpx.Client(timeout=180, follow_redirects=True) as client:
         for key, type_name in LAYERS.items():
             t0 = time.perf_counter()
-            fc = fetch_layer(client, type_name)
+            fc = drop_placeholder_points(fetch_layer(client, type_name))
             path = out / f"{key}.geojson"
-            path.write_text(json.dumps(fc, ensure_ascii=False))
+            path.write_text(json.dumps(fc, ensure_ascii=False), encoding="utf-8")
             attrs = sorted({k for f in fc["features"] for k in (f.get("properties") or {})})
             print(f"{key}: {len(fc['features'])} features, attrs={attrs}, "
                   f"{time.perf_counter() - t0:.1f}s -> {path}")
