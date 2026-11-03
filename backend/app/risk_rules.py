@@ -1,10 +1,11 @@
-"""Deterministic risk rules (SPEC section 6, decisions D4 and D13).
+"""Deterministic risk rules (SPEC section 6, decisions D4, D13 and D16).
 
 Every function maps raw source values to a level. No weighting, no AI.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass, field, replace
 from enum import Enum
 
 
@@ -67,19 +68,22 @@ def flood_hv_level(classes: dict[str, str | None]) -> HazardResult:
 
 
 def flood_efas_level(depths_m: dict[int, float | None]) -> HazardResult:
-    """depths_m: return period (years) -> depth in m, 0/None if dry. Used only where HV has no data."""
+    """depths_m: return period (years) -> depth in m; None = not covered / not loaded; 0 = dry.
+
+    Used only where HV has no data. If any of RP10/100/500 is missing or None the point is
+    not covered by EFAS -> NO_DATA (never NONE).
+    """
     detail = {f"rp{k}": v for k, v in sorted(depths_m.items())}
-    notes = ["Europski model (90 m), okvirna procjena; karta Hrvatskih voda ovdje nema podatka."]
+    if any(depths_m.get(rp) is None for rp in (10, 100, 500)):
+        return HazardResult("flood", Level.NO_DATA, "flood_efas", detail,
+                            ["Europski model EFAS prikazuje samo poplave uz veće rijeke; za ovu točku nema podatka."])
+    notes = ["Europski model (90 m), okvirna procjena; podatak s karte Hrvatskih voda ovdje nije dostupan."]
 
-    def wet(rp: int) -> bool:
-        d = depths_m.get(rp)
-        return d is not None and d > 0
-
-    if wet(10):
+    if depths_m[10] > 0:
         level = Level.HIGH
-    elif wet(100):
+    elif depths_m[100] > 0:
         level = Level.MEDIUM
-    elif wet(500):
+    elif depths_m[500] > 0:
         level = Level.LOW
     else:
         level = Level.NONE
@@ -87,25 +91,38 @@ def flood_efas_level(depths_m: dict[int, float | None]) -> HazardResult:
 
 
 def combine_flood(hv: HazardResult, efas: HazardResult | None) -> HazardResult:
-    """HV is authoritative; EFAS fills in only when HV has no data at all."""
+    """HV is authoritative; EFAS replaces it only if HV is NO_DATA and EFAS has data.
+
+    If both are NO_DATA, return HV with the EFAS notes appended (both reasons visible).
+    """
     if hv.level is not Level.NO_DATA or efas is None:
         return hv
+    if efas.level is Level.NO_DATA:
+        return replace(hv, notes=[*hv.notes, *efas.notes])
     return efas
 
 
 # --- earthquake -------------------------------------------------------------
 
-def seismic_level(ag_g: float | None, source: str = "seismic") -> HazardResult:
-    """ag_g: reference peak ground acceleration (type A ground), 475-year return period, in g."""
+def seismic_level(ag_g: float | None, distance_km: float | None = None, source: str = "seismic") -> HazardResult:
+    """ag_g: PGA for reference rock (Vs30 = 760 m/s), 475-year return period, in g.
+
+    distance_km: distance to the nearest ESHM20 grid point (no interpolation).
+    """
     if ag_g is None:
-        return HazardResult("seismic", Level.NO_DATA, source)
+        return HazardResult("seismic", Level.NO_DATA, source,
+                            notes=["Podatak o potresnoj opasnosti nije dostupan za ovu lokaciju."])
     if ag_g <= 0.04:
         level = Level.SEISMIC_VERY_LOW
     elif ag_g <= 0.08:
         level = Level.SEISMIC_LOW
     else:
         level = Level.SEISMIC_ABOVE_LOW
-    return HazardResult("seismic", level, source, {"ag_g": round(ag_g, 3)})
+    detail = {"ag_g": round(ag_g, 3)}
+    if distance_km is not None:
+        detail["udaljenost_km"] = round(distance_km, 1)
+    notes = ["Okvirna vrijednost iz europskog modela ESHM20 (najbliža točka mreže ~10 km, stijena Vs30 = 760 m/s)."]
+    return HazardResult("seismic", level, source, detail, notes)
 
 
 # --- geohazards (Banovina) --------------------------------------------------
@@ -113,9 +130,11 @@ def seismic_level(ag_g: float | None, source: str = "seismic") -> HazardResult:
 SUSCEPTIBILITY = {"niska": Level.LOW, "srednja": Level.MEDIUM, "visoka": Level.HIGH}
 
 
-def susceptibility_level(hazard: str, value: str | None, in_coverage: bool) -> HazardResult:
+def susceptibility_level(hazard: str, value: str | None, in_coverage: bool, layer_loaded: bool = True) -> HazardResult:
     if not in_coverage:
         return HazardResult(hazard, Level.NO_DATA, hazard, notes=["Izvan obuhvata studije (Banovina)."])
+    if not layer_loaded:
+        return HazardResult(hazard, Level.NO_DATA, hazard, notes=["Sloj nije učitan."])
     if value is None:
         return HazardResult(hazard, Level.NO_DATA, hazard, notes=["Točka nije unutar poligona studije."])
     level = SUSCEPTIBILITY.get(value.strip().lower())
@@ -124,11 +143,55 @@ def susceptibility_level(hazard: str, value: str | None, in_coverage: bool) -> H
     return HazardResult(hazard, level, hazard, {"podloznost": value})
 
 
-def unfavourable_level(inside: bool, in_coverage: bool) -> HazardResult:
+def unfavourable_level(inside: bool, in_coverage: bool, layer_loaded: bool = True) -> HazardResult:
     if not in_coverage:
         return HazardResult("unfavourable", Level.NO_DATA, "unfavourable",
                             notes=["Izvan obuhvata studije (Banovina)."])
+    if not layer_loaded:
+        return HazardResult("unfavourable", Level.NO_DATA, "unfavourable", notes=["Sloj nije učitan."])
     return HazardResult("unfavourable", Level.HIGH if inside else Level.NONE, "unfavourable")
+
+
+_DATE_RE = re.compile(r"(\d{1,2})\.(\d{1,2})\.(\d{4})")
+
+
+def _format_measurement_date(raw: str | None) -> str:
+    """Normalise inconsistent strings ('4.02.2021.') to '4. 2. 2021.'; fallback '2021. (datum mjerenja nije naveden)'."""
+    m = _DATE_RE.search(raw or "")
+    if not m:
+        return "2021. (datum mjerenja nije naveden)"
+    d, mo, y = m.groups()
+    return f"{int(d)}. {int(mo)}. {y}."
+
+
+def groundwater_level(hit: dict | None, in_coverage: bool, layer_loaded: bool = True) -> HazardResult:
+    """hit: {'dubina_do': float, 'datum_mjerenja': str | None, 'udaljenost_m': int} from nearest well <= 1 km."""
+    if not in_coverage:
+        return HazardResult("groundwater", Level.NO_DATA, "groundwater",
+                            notes=["Izvan obuhvata studije (Banovina)."])
+    if not layer_loaded:
+        return HazardResult("groundwater", Level.NO_DATA, "groundwater",
+                            notes=["Sloj podzemne vode nije učitan."])
+    if hit is None or hit.get("dubina_do") is None:
+        return HazardResult("groundwater", Level.NO_DATA, "groundwater",
+                            notes=["Nema točke mjerenja podzemne vode unutar 1 km."])
+    depth = float(hit["dubina_do"])
+    if depth < 1.5:
+        level = Level.HIGH
+    elif depth <= 3.0:
+        level = Level.MEDIUM
+    else:
+        level = Level.LOW
+    when = _format_measurement_date(hit.get("datum_mjerenja"))
+    dist = hit.get("udaljenost_m")
+    if when.startswith("2021. ("):
+        first = f"Jedno mjerenje iz 2021. (datum mjerenja nije naveden; bušotina udaljena {dist} m). "
+    else:
+        first = f"Jedno mjerenje od {when} (bušotina udaljena {dist} m). "
+    notes = [first + "Razina podzemne vode mijenja se tijekom godine."]
+    if depth < 0:
+        notes.append("Mjerenje pokazuje vodu iznad razine terena.")
+    return HazardResult("groundwater", level, "groundwater", dict(hit), notes)
 
 
 # --- summary ----------------------------------------------------------------
