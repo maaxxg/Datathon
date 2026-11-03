@@ -174,6 +174,17 @@
 	</div>
 </section>
 
+<section class="section-block" aria-labelledby="basemap-heading">
+	<h2 id="basemap-heading">Podloga karte</h2>
+	<p>
+		Pozadinska karta je © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">suradnici OpenStreetMapa</a>
+		(licenca ODbL), a pločice poslužuje tile.openstreetmap.org prema
+		<a href="https://operations.osmfoundation.org/policies/tiles/" target="_blank" rel="noopener noreferrer">pravilima korištenja pločica</a>.
+		Preglednik pločice karte dohvaća izravno s OpenStreetMap poslužitelja, pa oni vide vašu IP adresu i prikazano područje karte.
+		OpenStreetMap ne koristimo kao izvor podataka o opasnostima, samo kao pozadinu.
+	</p>
+</section>
+
 <section class="section-block disclaimer-box" aria-labelledby="legal-heading">
 	<h2 id="legal-heading">3. Odricanje od odgovornosti, privatnost i licence</h2>
 	<ul>
