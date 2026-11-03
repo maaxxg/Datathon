@@ -24,6 +24,17 @@ HAZARD_NAMES = {
     "groundwater": "podzemna voda",
 }
 
+# Accusative forms for "Nema podataka za ..." / "povišena opasnost za: ...".
+HAZARD_NAMES_ACC = {
+    "flood": "poplave",
+    "seismic": "potresnu opasnost",
+    "landslide": "klizišta",
+    "liquefaction": "likvefakciju tla",
+    "sinkhole": "vrtače",
+    "unfavourable": "nepovoljne uvjete za gradnju",
+    "groundwater": "podzemnu vodu",
+}
+
 SUSCEPTIBILITY_DATIVE = {
     "landslide": "klizištima",
     "liquefaction": "likvefakciji tla",
@@ -91,14 +102,15 @@ def _explain_seismic(r: HazardResult) -> str | None:
     ag_txt = _num(ag, 3)
     dist = r.detail.get("udaljenost_km")
     tail = f" Najbliža točka mreže udaljena je {_num(dist, 1)} km." if isinstance(dist, (int, float)) else ""
-    base = (f"ag = {ag_txt} g za povratno razdoblje od 475 god. (europski model ESHM20, okvirno)")
+    base = f"ag = {ag_txt} g za povratno razdoblje od 475 god."
+    src = " Vrijednost je određena okvirno, prema europskom modelu ESHM20."
     if r.level is Level.SEISMIC_VERY_LOW:
-        return f"Potresna opasnost: vrlo niska seizmičnost prema Eurokodu 8 ({base}; prag ≤ 0,04 g).{tail}"
+        return f"Potresna opasnost: vrlo niska seizmičnost prema Eurokodu 8 ({base}; prag ≤ 0,04 g).{src}{tail}"
     if r.level is Level.SEISMIC_LOW:
-        return f"Potresna opasnost: niska seizmičnost prema Eurokodu 8 ({base}; raspon 0,04 – 0,08 g).{tail}"
+        return f"Potresna opasnost: niska seizmičnost prema Eurokodu 8 ({base}; raspon 0,04 – 0,08 g).{src}{tail}"
     if r.level is Level.SEISMIC_ABOVE_LOW:
         return (f"Potresna opasnost: iznad praga niske seizmičnosti prema Eurokodu 8 ({base}; "
-                f"> 0,08 g).{tail}")
+                f"> 0,08 g).{src}{tail}")
     return None
 
 
@@ -120,7 +132,7 @@ def _explain_groundwater(r: HazardResult) -> str | None:
 def explain_hazard(r: HazardResult) -> str:
     """Return a plain-language Croatian explanation for a single HazardResult."""
     if r.level is Level.NO_DATA:
-        name = HAZARD_NAMES.get(r.hazard, r.hazard)
+        name = HAZARD_NAMES_ACC.get(r.hazard, r.hazard)
         return " ".join([f"Nema podataka za {name}.", *r.notes])
 
     text: str | None = None
@@ -156,8 +168,8 @@ def build_summary(results: list[HazardResult], top: HazardResult | None, in_bano
     )
     order = {h: i for i, h in enumerate(HAZARD_ORDER)}
     ordered = sorted(results, key=lambda r: order.get(r.hazard, len(order)))
-    no_data = [HAZARD_NAMES.get(r.hazard, r.hazard) for r in ordered if r.level is Level.NO_DATA]
-    with_data = [HAZARD_NAMES.get(r.hazard, r.hazard) for r in ordered if r.level is not Level.NO_DATA]
+    no_data = [HAZARD_NAMES_ACC.get(r.hazard, r.hazard) for r in ordered if r.level is Level.NO_DATA]
+    with_data = [HAZARD_NAMES_ACC.get(r.hazard, r.hazard) for r in ordered if r.level is not Level.NO_DATA]
     no_data_sentence = f"Nema podataka za: {', '.join(no_data)}." if no_data else ""
 
     if results and not with_data:

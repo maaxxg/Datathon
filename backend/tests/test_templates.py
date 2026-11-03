@@ -127,6 +127,7 @@ def test_no_data_text_contains_rule_notes(name):
     r = CASES[name]
     text = explain_hazard(r)
     assert text.startswith("Nema podataka za ")
+    assert "Nema podataka za likvefakcija" not in text and "za podzemna" not in text
     for note in r.notes:
         assert note in text
     assert "nije utvrđena" not in text
@@ -181,14 +182,14 @@ def test_summary_none_plus_no_data_lists_both_groups():
     results = [CASES["hv_none"], CASES["seis_none"], CASES["landslide_no_cov"]]
     s = build_summary(results, most_significant(results), False)
     assert "nije utvrđena povišena opasnost za: poplave." in s
-    assert "Nema podataka za: potresna opasnost, klizišta." in s
+    assert "Nema podataka za: potresnu opasnost, klizišta." in s
 
 
 def test_summary_top_plus_no_data_and_scope():
     results = [CASES["hv_velika"], CASES["seis_none"], CASES["landslide_no_cov"]]
     s = build_summary(results, most_significant(results), False)
     assert "razina: visoko" in s
-    assert "Nema podataka za: potresna opasnost, klizišta." in s
+    assert "Nema podataka za: potresnu opasnost, klizišta." in s
     assert "nacionalni slojevi" not in s and "Sisačko" not in s
     assert "samo za područje Banovine" in s
     assert not re.search(r"\d\.\d", s) and "_" not in s
