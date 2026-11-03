@@ -61,7 +61,7 @@ Razine: **visoko**, **srednje**, **nisko**, **nema prema karti**, **nema podatak
 | Potres | ESHM20 (EFEHR, 475 god., CC BY 4.0, D17); okvirno; mreža ~10 km; stijena Vs30 = 760 m/s; izvor nije s data.gov.hr | razredi prema Eurokodu 8 (EN 1998-1, 3.2.1): ag ≤ 0,04 g **vrlo niska seizmičnost**; ≤ 0,08 g **niska seizmičnost**; > 0,08 g **iznad praga niske seizmičnosti**, uz prikaz točne vrijednosti i usporedbu s poznatim mjestima. Bez razreda "visoko" jer za njega nema normiranog praga |
 | Klizišta, likvefakcija, vrtače | MPGI geohazardi | razred podložnosti iz podataka (niska/srednja/visoka) izravno; izvan obuhvata → nema podataka |
 | Nepovoljno za gradnju | MPGI | unutar poligona → visoko (oznaka) |
-| Podzemna voda | MPGI | najbliža točka mjerenja unutar 1 km (`dubina_do` u m): `< 1,5 m` → visoko; `1,5–3,0 m` → srednje; `> 3,0 m` → nisko; bez točke unutar 1 km ili izvan obuhvata → nema podataka (D16); uz napomenu: jedno mjerenje (veljača 2021.), datum i udaljenost bušotine |
+| Podzemna voda | MPGI | najbliža točka mjerenja unutar 1 km (`dubina_do` u m): `< 1,5 m` → visoko; `1,5–3,0 m` → srednje; `> 3,0 m` → nisko; bez točke unutar 1 km ili izvan obuhvata → nema podataka (D16); uz napomenu: jedno mjerenje (veljača–ožujak 2021.), datum i udaljenost bušotine |
 
 "Najznačajniji rizik" je opasnost s najvišom razinom. Kod jednakih razina redoslijed je: poplava, potres, klizišta, likvefakcija, vrtače.
 

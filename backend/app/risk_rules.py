@@ -152,10 +152,10 @@ _DATE_RE = re.compile(r"(\d{1,2})\.(\d{1,2})\.(\d{4})")
 
 
 def _format_measurement_date(raw: str | None) -> str:
-    """Normalise inconsistent strings ('4.02.2021.') to '4. 2. 2021.'; fallback 'veljače 2021.'."""
+    """Normalise inconsistent strings ('4.02.2021.') to '4. 2. 2021.'; fallback '2021. (datum mjerenja nije naveden)'."""
     m = _DATE_RE.search(raw or "")
     if not m:
-        return "veljače 2021."
+        return "2021. (datum mjerenja nije naveden)"
     d, mo, y = m.groups()
     return f"{int(d)}. {int(mo)}. {y}."
 
@@ -178,11 +178,13 @@ def groundwater_level(hit: dict | None, in_coverage: bool, layer_loaded: bool = 
         level = Level.MEDIUM
     else:
         level = Level.LOW
-    notes = [
-        f"Jedno mjerenje od {_format_measurement_date(hit.get('datum_mjerenja'))} "
-        f"(bušotina udaljena {hit.get('udaljenost_m')} m). "
-        "Razina podzemne vode mijenja se tijekom godine."
-    ]
+    when = _format_measurement_date(hit.get("datum_mjerenja"))
+    dist = hit.get("udaljenost_m")
+    if when.startswith("2021. ("):
+        first = f"Jedno mjerenje iz 2021. (datum mjerenja nije naveden; bušotina udaljena {dist} m). "
+    else:
+        first = f"Jedno mjerenje od {when} (bušotina udaljena {dist} m). "
+    notes = [first + "Razina podzemne vode mijenja se tijekom godine."]
     if depth < 0:
         notes.append("Mjerenje pokazuje vodu iznad razine terena.")
     return HazardResult("groundwater", level, "groundwater", dict(hit), notes)

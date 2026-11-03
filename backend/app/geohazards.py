@@ -23,6 +23,15 @@ def _distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return math.hypot(dx, dy)
 
 
+def valid_point_feature(f: dict) -> bool:
+    """Drop placeholder points (source has 5 at [16.5, -90]); other geometries pass through."""
+    g = f.get("geometry")
+    if not g or g.get("type") != "Point":
+        return True
+    lon, lat = g["coordinates"][:2]
+    return -180 <= lon <= 180 and -90 < lat < 90
+
+
 class Layer:
     def __init__(self, features: list[dict]):
         self.geoms = [shape(f["geometry"]) for f in features if f.get("geometry")]
@@ -58,7 +67,7 @@ class Geohazards:
         self.layers: dict[str, Layer] = {}
         for path in sorted(directory.glob("*.geojson")):
             fc = json.loads(path.read_text(encoding="utf-8"))
-            self.layers[path.stem] = Layer(fc.get("features", []))
+            self.layers[path.stem] = Layer([f for f in fc.get("features", []) if valid_point_feature(f)])
 
     def available(self) -> bool:
         return bool(self.layers)

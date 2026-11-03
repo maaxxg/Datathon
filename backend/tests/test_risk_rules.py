@@ -131,7 +131,8 @@ def test_groundwater_negative_depth_note():
 def test_groundwater_date_fallback():
     for raw in (None, "", "veljača", "2021-02-04"):
         r = groundwater_level({"dubina_do": 2.0, "datum_mjerenja": raw, "udaljenost_m": 5}, True)
-        assert "veljače 2021." in r.notes[0]
+        assert "2021. (datum mjerenja nije naveden; bušotina udaljena 5 m)" in r.notes[0]
+        assert "veljač" not in r.notes[0]
 
 
 def test_groundwater_layer_not_loaded():

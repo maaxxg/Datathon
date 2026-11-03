@@ -41,3 +41,13 @@ def test_lookup(tmp_path):
 def test_banovina_bbox():
     assert in_banovina(45.4375, 16.2739)      # Petrinja
     assert not in_banovina(43.5081, 16.4402)  # Split
+
+
+def test_placeholder_points_dropped(tmp_path):
+    pt = lambda lon, lat, d: {"type": "Feature", "geometry": {"type": "Point", "coordinates": [lon, lat]},
+                              "properties": {"dubina_do": d}}
+    fc = {"type": "FeatureCollection", "features": [pt(16.2739, 45.4375, 2.0), pt(16.5, -90, 0)]}
+    (tmp_path / "groundwater.geojson").write_text(json.dumps(fc), encoding="utf-8")
+    geo = Geohazards(tmp_path)
+    assert len(geo.layers["groundwater"].geoms) == 1
+    assert geo.nearest_groundwater(45.4375, 16.2739)["dubina_do"] == 2.0
