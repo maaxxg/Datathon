@@ -1,6 +1,7 @@
 """Geo-rizik API (vertical prototype: HV floods + EFAS fallback + Banovina geohazards + ESHM20 seismic + address geocoder + template explanations)."""
 from __future__ import annotations
 
+import mimetypes
 import os
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -26,6 +27,10 @@ CATALOGUE = yaml.safe_load((Path(__file__).parent / "layers.yaml").read_text(enc
 CROATIA = CATALOGUE["coverages"]["croatia"]
 DISCLAIMER = ("Informativni prikaz iz javnih podataka. Nije stručno mišljenje ni službena potvrda; "
               "za odluke se obratite nadležnim institucijama i ovlaštenim stručnjacima.")
+
+# Serve map GeoJSON as application/json so the proxy compresses it (Caddy's default
+# `encode` matcher skips application/octet-stream; landslide is ~2.5 MB raw, ~0.6 MB gzip).
+mimetypes.add_type("application/json", ".geojson")
 
 state: dict = {}
 

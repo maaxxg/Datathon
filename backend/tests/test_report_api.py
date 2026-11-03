@@ -59,3 +59,16 @@ def test_map_data_serves_file_and_404(tmp_path):
     ok = c.get("/api/map-data/efas_bounds.json")
     assert ok.status_code == 200 and ok.json() == [[1, 2]]
     assert c.get("/api/map-data/missing.png").status_code == 404
+
+
+def test_map_data_geojson_served_as_json(tmp_path):
+    import app.main  # noqa: F401  (registers the .geojson MIME type)
+    from fastapi import FastAPI
+    from fastapi.staticfiles import StaticFiles
+
+    (tmp_path / "geohazard_x.geojson").write_text('{"type":"FeatureCollection","features":[]}')
+    app_ = FastAPI()
+    app_.mount("/api/map-data", StaticFiles(directory=tmp_path, check_dir=False))
+    r = TestClient(app_).get("/api/map-data/geohazard_x.geojson")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/json")
