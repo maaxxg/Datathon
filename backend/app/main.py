@@ -1,4 +1,4 @@
-"""Geo-rizik API (vertical prototype: HV floods + EFAS fallback + Banovina geohazards + ESHM20 seismic + address geocoder)."""
+"""Geo-rizik API (vertical prototype: HV floods + EFAS fallback + Banovina geohazards + ESHM20 seismic + address geocoder + template explanations)."""
 from __future__ import annotations
 
 import os
@@ -14,10 +14,11 @@ from .geocoder import AddressGeocoder
 from .geohazards import SUSCEPTIBILITY_LAYERS, Geohazards, in_banovina
 from .hv_flood import HVFloodClient
 from .risk_rules import (
-    HazardResult, combine_flood, flood_efas_level, flood_hv_level, groundwater_level,
+    HazardResult, Level, combine_flood, flood_efas_level, flood_hv_level, groundwater_level,
     most_significant, seismic_level, susceptibility_level, unfavourable_level,
 )
 from .seismic import SeismicReader
+from .templates import build_summary, explain_hazard, recommended_actions
 
 DATA_DIR = Path(os.environ.get("GEORIZIK_DATA", Path(__file__).resolve().parents[2] / "data"))
 CATALOGUE = yaml.safe_load((Path(__file__).parent / "layers.yaml").read_text(encoding="utf-8"))
@@ -47,6 +48,7 @@ app = FastAPI(title="Geo-rizik API", version="0.1.0", lifespan=lifespan)
 def serialise(r: HazardResult) -> dict:
     d = asdict(r)
     d["level"] = r.level.value
+    d["explanation"] = explain_hazard(r)
     layer = CATALOGUE["layers"].get(r.source, {})
     d["source"] = {k: layer.get(k) for k in ("title", "publisher", "licence", "url", "year", "resolution", "note")}
     return d
@@ -108,5 +110,8 @@ async def report(lat: float = Query(..., ge=-90, le=90), lon: float = Query(...,
         "location": {"lat": lat, "lon": lon},
         "most_significant": serialise(top) if top else None,
         "hazards": [serialise(r) for r in results],
+        "summary": build_summary(results, top, covered),
+        "all_no_data": all(r.level is Level.NO_DATA for r in results),
+        "recommended_actions": recommended_actions(results),
         "disclaimer": DISCLAIMER,
     }
