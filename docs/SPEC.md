@@ -58,7 +58,7 @@ Razine: **visoko**, **srednje**, **nisko**, **nema prema karti**, **nema podatak
 |---|---|---|
 | Poplava | HV 2019. | velika vjerojatnost (bilo koja dubina) → visoko; srednja vjerojatnost s dubinom > 1,5 m → visoko; srednja ≤ 1,5 m → srednje; samo mala vjerojatnost → nisko; izvan svih zona unutar obuhvata karte → nema prema karti; stalna vodena površina → posebna oznaka |
 | Poplava | EFAS (samo gdje HV nema podatka) | dubina > 0 za RP10 → visoko; za RP100 → srednje; samo za RP500 → nisko; inače nema prema karti. Oznaka "europski model, 90 m, okvirno" |
-| Potres | ESHM20 (EFEHR, 475 god., CC BY 4.0, D17) | razredi prema Eurokodu 8 (EN 1998-1, 3.2.1): ag ≤ 0,04 g **vrlo niska seizmičnost**; ≤ 0,08 g **niska seizmičnost**; > 0,08 g **iznad praga niske seizmičnosti**, uz prikaz točne vrijednosti i usporedbu s poznatim mjestima. Bez razreda "visoko" jer za njega nema normiranog praga |
+| Potres | ESHM20 (EFEHR, 475 god., CC BY 4.0, D17); okvirno; mreža ~10 km; stijena Vs30 = 760 m/s; izvor nije s data.gov.hr | razredi prema Eurokodu 8 (EN 1998-1, 3.2.1): ag ≤ 0,04 g **vrlo niska seizmičnost**; ≤ 0,08 g **niska seizmičnost**; > 0,08 g **iznad praga niske seizmičnosti**, uz prikaz točne vrijednosti i usporedbu s poznatim mjestima. Bez razreda "visoko" jer za njega nema normiranog praga |
 | Klizišta, likvefakcija, vrtače | MPGI geohazardi | razred podložnosti iz podataka (niska/srednja/visoka) izravno; izvan obuhvata → nema podataka |
 | Nepovoljno za gradnju | MPGI | unutar poligona → visoko (oznaka) |
 | Podzemna voda | MPGI | razredi prema atributu dubine (atribut još nije provjeren) |

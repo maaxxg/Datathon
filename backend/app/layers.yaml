@@ -34,6 +34,7 @@ layers:
     info_url: https://doi.org/10.12686/a15
     year: 2021
     resolution: mreža ~0,1° (~10 km), referentna stijena Vs30 = 760 m/s
+    note: "Europski model (EFEHR), nije objavljen na data.gov.hr; vrijednost najbliže točke mreže ~10 km, bez interpolacije; referentna stijena Vs30 = 760 m/s (tlo tipa A prema Eurokodu 8 ima Vs30 > 800 m/s; vrijednost nije prilagođena); okvirna procjena."
     coverage: croatia
     classes: [vrlo_niska_seizmicnost, niska_seizmicnost, iznad_praga_niske_seizmicnosti]
 
@@ -97,6 +98,8 @@ layers:
     licence: Otvorena dozvola RH
     url: https://data.gov.hr/ckan/hr/dataset/adrese-inspire
     download: https://geoportal.dgu.hr/services/atom/INSPIRE_Addresses_(AD).zip
+    year: 2026  # GML header timeStamp 2026-11-01
+    resolution: točkovni (adresna točka)
     coverage: croatia
 
 coverages:

@@ -9,6 +9,9 @@ from shapely import STRtree
 from shapely.geometry import Point
 
 
+KM_PER_DEG = 111.2
+
+
 def _dist_deg_scaled(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     dy = lat2 - lat1
     dx = (lon2 - lon1) * math.cos(math.radians((lat1 + lat2) * 0.5))
@@ -33,8 +36,11 @@ class SeismicReader:
     def available(self) -> bool:
         return bool(self.points)
 
-    def pga_g(self, lat: float, lon: float) -> float | None:
-        """Return reference PGA (g, 475-yr) at the nearest ESHM20 grid point within max_deg."""
+    def pga_g(self, lat: float, lon: float) -> tuple[float, float] | None:
+        """Return (PGA in g, distance in km) of the nearest ESHM20 grid point within max_deg.
+
+        Reference rock Vs30 = 760 m/s, 475-yr return period; no interpolation.
+        """
         if not self.points or self._tree is None:
             return None
         candidates = self._tree.query(Point(lon, lat).buffer(self.max_deg))
@@ -46,4 +52,6 @@ class SeismicReader:
             if d <= self.max_deg and d < best_dist:
                 best_dist = d
                 best_val = val
-        return best_val
+        if best_val is None:
+            return None
+        return best_val, best_dist * KM_PER_DEG

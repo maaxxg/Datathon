@@ -95,17 +95,25 @@ def combine_flood(hv: HazardResult, efas: HazardResult | None) -> HazardResult:
 
 # --- earthquake -------------------------------------------------------------
 
-def seismic_level(ag_g: float | None, source: str = "seismic") -> HazardResult:
-    """ag_g: reference peak ground acceleration (type A ground), 475-year return period, in g."""
+def seismic_level(ag_g: float | None, distance_km: float | None = None, source: str = "seismic") -> HazardResult:
+    """ag_g: PGA for reference rock (Vs30 = 760 m/s), 475-year return period, in g.
+
+    distance_km: distance to the nearest ESHM20 grid point (no interpolation).
+    """
     if ag_g is None:
-        return HazardResult("seismic", Level.NO_DATA, source)
+        return HazardResult("seismic", Level.NO_DATA, source,
+                            notes=["Podatak o potresnoj opasnosti nije dostupan za ovu lokaciju."])
     if ag_g <= 0.04:
         level = Level.SEISMIC_VERY_LOW
     elif ag_g <= 0.08:
         level = Level.SEISMIC_LOW
     else:
         level = Level.SEISMIC_ABOVE_LOW
-    return HazardResult("seismic", level, source, {"ag_g": round(ag_g, 3)})
+    detail = {"ag_g": round(ag_g, 3)}
+    if distance_km is not None:
+        detail["udaljenost_km"] = round(distance_km, 1)
+    notes = ["Okvirna vrijednost iz europskog modela ESHM20 (najbliža točka mreže ~10 km, stijena Vs30 = 760 m/s)."]
+    return HazardResult("seismic", level, source, detail, notes)
 
 
 # --- geohazards (Banovina) --------------------------------------------------
