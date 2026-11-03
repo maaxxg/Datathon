@@ -18,3 +18,4 @@ data/efas/*.tif
 data/geohazards/*.geojson
 data/seismic/*.json
 data/grid/
+data/map/

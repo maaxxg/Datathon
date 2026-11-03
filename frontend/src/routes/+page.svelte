@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import MapLayers from '$lib/MapLayers.svelte';
 	import { HAZARD_META, LEVEL_META, FLOOD_DEPTH_TEXT, PRESET_LOCATIONS, fmt } from '$lib/labels.js';
 
 	let searchQuery = $state('');
@@ -16,12 +17,7 @@
 	let loading = $state(false);
 	let errorMsg = $state('');
 
-	let showHvLayer = $state(false);
-	let hvScenario = $state('srednja');
-	let mapZoom = $state(12);
-	// Verified 3. 11. 2026.: HV WMS renders pixels only for tile zoom 12-14.
-	const HV_MIN_ZOOM = 12;
-	const HV_MAX_ZOOM = 15;
+	let mapObj = $state(null);
 
 	let mapContainer;
 	let map;
@@ -98,36 +94,6 @@
 		fetchReport(preset.lat, preset.lon, preset.name);
 	}
 
-	function updateWmsLayer() {
-		if (!map || !map.isStyleLoaded()) return;
-		const sourceId = 'hv-flood-wms';
-		const layerId = 'hv-flood-layer';
-		if (map.getLayer(layerId)) map.removeLayer(layerId);
-		if (map.getSource(sourceId)) map.removeSource(sourceId);
-		if (!showHvLayer) return;
-
-		const wmsLayer = `poplave_opasnosti_2019:hr.fd.opasnost-od-poplave-${hvScenario}-vjerojatnost_2019`;
-		const tileUrl =
-			`https://servisi.voda.hr/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap` +
-			`&LAYERS=${wmsLayer}&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}` +
-			`&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true`;
-
-		map.addSource(sourceId, {
-			type: 'raster',
-			tiles: [tileUrl],
-			tileSize: 256,
-			attribution: '© Hrvatske vode (2019.)'
-		});
-		map.addLayer({
-			id: layerId,
-			type: 'raster',
-			source: sourceId,
-			minzoom: HV_MIN_ZOOM,
-			maxzoom: HV_MAX_ZOOM,
-			paint: { 'raster-opacity': 0.72 }
-		});
-	}
-
 	onMount(() => {
 		map = new maplibregl.Map({
 			container: mapContainer,
@@ -148,8 +114,6 @@
 			zoom: 12
 		});
 		map.addControl(new maplibregl.NavigationControl(), 'top-right');
-		map.on('zoom', () => (mapZoom = map.getZoom()));
-		mapZoom = map.getZoom();
 
 		marker = new maplibregl.Marker({ color: '#1d4ed8' }).setLngLat([lon, lat]).addTo(map);
 
@@ -159,8 +123,8 @@
 			fetchReport(cLat, cLon, `Odabrana točka na karti (${fmt(cLat, 4)}; ${fmt(cLon, 4)})`);
 		});
 
-		map.on('load', () => {
-			updateWmsLayer();
+		map.once('style.load', () => {
+			mapObj = map;
 		});
 
 		fetchReport(lat, lon, selectedLabel);
@@ -233,27 +197,8 @@
 
 <div class="workspace-grid">
 	<section class="map-column no-print" aria-label="Interaktivna karta">
-		<div class="map-toolbar">
-			<label class="layer-toggle">
-				<input
-					type="checkbox"
-					bind:checked={showHvLayer}
-					onchange={updateWmsLayer}
-				/>
-				<span>Prikaži WMS sloj poplava (Hrvatske vode)</span>
-			</label>
-			{#if showHvLayer}
-				<select bind:value={hvScenario} onchange={updateWmsLayer} aria-label="Scenarij poplave">
-					<option value="velika">Velika vjerojatnost</option>
-					<option value="srednja">Srednja vjerojatnost</option>
-					<option value="mala">Mala vjerojatnost</option>
-				</select>
-			{/if}
-		</div>
-		{#if showHvLayer && (mapZoom < HV_MIN_ZOOM || mapZoom >= HV_MAX_ZOOM)}
-			<p class="map-hint" role="status">Sloj poplava vidljiv je pri zumu 12–14.</p>
-		{/if}
 		<div class="map-frame" bind:this={mapContainer}></div>
+		<MapLayers map={mapObj} />
 		<p class="map-hint">
 			Savjet: Kliknite bilo gdje na kartu unutar Republike Hrvatske za izračun izvještaja za tu točku.
 		</p>
@@ -593,22 +538,6 @@
 		padding: 0.85rem;
 		position: sticky;
 		top: 1rem;
-	}
-	.map-toolbar {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: space-between;
-		align-items: center;
-		gap: 0.5rem;
-		margin-bottom: 0.6rem;
-		font-size: 0.88rem;
-	}
-	.layer-toggle {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		font-weight: 600;
-		cursor: pointer;
 	}
 	.map-frame {
 		width: 100%;

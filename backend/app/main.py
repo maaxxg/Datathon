@@ -8,6 +8,7 @@ from pathlib import Path
 
 import yaml
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.staticfiles import StaticFiles
 
 from .efas_flood import EFASFloodReader
 from .geocoder import AddressGeocoder
@@ -54,6 +55,17 @@ def serialise(r: HazardResult) -> dict:
     return d
 
 
+MAP_FILES = (
+    [f"geohazard_{n}.geojson" for n in ("landslide", "liquefaction", "sinkhole", "unfavourable")]
+    + ["banovina_coverage.geojson", "efas_bounds.json"]
+    + [f"efas_rp{rp}.png" for rp in (10, 100, 500)]
+)
+
+
+def map_layers_loaded() -> bool:
+    return all((DATA_DIR / "map" / f).is_file() for f in MAP_FILES)
+
+
 @app.get("/api/health")
 async def health() -> dict:
     return {
@@ -62,6 +74,7 @@ async def health() -> dict:
         "addresses_loaded": state["geocoder"].available(),
         "seismic_loaded": state["seismic"].available(),
         "efas_loaded": state["efas"].available(),
+        "map_layers_loaded": map_layers_loaded(),
     }
 
 
@@ -115,3 +128,9 @@ async def report(lat: float = Query(..., ge=-90, le=90), lon: float = Query(...,
         "recommended_actions": recommended_actions(results),
         "disclaimer": DISCLAIMER,
     }
+
+
+# Display-only map layers built by pipeline/build_map_layers.py; whole-file fetches, no coordinates.
+# Registered last so it cannot shadow the /api/* routes above. Mounted only if the directory exists.
+if (DATA_DIR / "map").is_dir():
+    app.mount("/api/map-data", StaticFiles(directory=DATA_DIR / "map"), name="map-data")

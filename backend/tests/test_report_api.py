@@ -34,3 +34,13 @@ def test_not_all_no_data_when_hv_answers(monkeypatch, tmp_path):
     assert body["all_no_data"] is False
     assert body["most_significant"]["hazard"] == "flood"
     assert "Nema podataka za:" in body["summary"]
+
+
+def test_health_map_layers_flag_and_static(monkeypatch, tmp_path):
+    with _client(monkeypatch, tmp_path, {}) as c:
+        assert c.get("/api/health").json()["map_layers_loaded"] is False
+    (tmp_path / "map").mkdir()
+    for f in main.MAP_FILES:
+        (tmp_path / "map" / f).write_bytes(b"x")
+    with _client(monkeypatch, tmp_path, {}) as c:
+        assert c.get("/api/health").json()["map_layers_loaded"] is True

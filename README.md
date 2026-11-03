@@ -24,6 +24,7 @@ python pipeline/fetch_geohazards.py                 # MPGI geohazardi -> data/ge
 # preuzeti ručno (~84 MB): https://geoportal.dgu.hr/services/atom/INSPIRE_Addresses_(AD).zip -> data/raw/
 python pipeline/build_address_index.py "data/raw/INSPIRE_Addresses_(AD).zip" --inspect   # prvo provjera strukture
 python pipeline/build_address_index.py "data/raw/INSPIRE_Addresses_(AD).zip"             # -> data/addresses.sqlite
+python pipeline/build_map_layers.py                  # slojevi za kartu -> data/map/ (nakon geohazarda i EFAS-a)
 ```
 
 ## Izvori podataka
