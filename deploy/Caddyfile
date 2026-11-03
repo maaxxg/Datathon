@@ -1,0 +1,26 @@
+# DOMAIN unset  -> https://localhost with Caddy's internal CA (browser warning).
+# DOMAIN=<name> -> public HTTPS with an automatic certificate.
+{$DOMAIN:localhost} {
+	encode gzip zstd
+
+	# PRIVACY: there is deliberately NO `log` directive in this file. Without it Caddy
+	# writes no access log, and request URIs contain lat/lon and address queries.
+	# Do not add one.
+
+	header {
+		# Map tile requests to tile.openstreetmap.org must not leak our page URLs.
+		Referrer-Policy no-referrer
+		X-Content-Type-Options nosniff
+	}
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	# Static SvelteKit build (SPA mode): unknown paths fall back to index.html.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
