@@ -1,4 +1,4 @@
-"""Geo-rizik API (vertical prototype: HV floods + Banovina geohazards + ESHM20 seismic + address geocoder)."""
+"""Geo-rizik API (vertical prototype: HV floods + EFAS fallback + Banovina geohazards + ESHM20 seismic + address geocoder)."""
 from __future__ import annotations
 
 import os
@@ -9,12 +9,13 @@ from pathlib import Path
 import yaml
 from fastapi import FastAPI, HTTPException, Query
 
+from .efas_flood import EFASFloodReader
 from .geocoder import AddressGeocoder
 from .geohazards import SUSCEPTIBILITY_LAYERS, Geohazards, in_banovina
 from .hv_flood import HVFloodClient
 from .risk_rules import (
-    HazardResult, flood_hv_level, most_significant, seismic_level,
-    susceptibility_level, unfavourable_level,
+    HazardResult, combine_flood, flood_efas_level, flood_hv_level, most_significant,
+    seismic_level, susceptibility_level, unfavourable_level,
 )
 from .seismic import SeismicReader
 
@@ -30,10 +31,12 @@ state: dict = {}
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     state["hv"] = HVFloodClient()
+    state["efas"] = EFASFloodReader(DATA_DIR / "efas")
     state["geo"] = Geohazards(DATA_DIR / "geohazards")
     state["seismic"] = SeismicReader(DATA_DIR / "seismic" / "eshm20_pga475.json")
     state["geocoder"] = AddressGeocoder(DATA_DIR / "addresses.sqlite")
     yield
+    state["efas"].close()
     state["geocoder"].close()
     await state["hv"].aclose()
 
@@ -56,6 +59,7 @@ async def health() -> dict:
         "geohazards_loaded": state["geo"].available(),
         "addresses_loaded": state["geocoder"].available(),
         "seismic_loaded": state["seismic"].available(),
+        "efas_loaded": state["efas"].available(),
     }
 
 
@@ -79,7 +83,11 @@ async def report(lat: float = Query(..., ge=-90, le=90), lon: float = Query(...,
     if not (w <= lon <= e and s <= lat <= n):
         raise HTTPException(422, "Lokacija je izvan Hrvatske.")
 
-    results: list[HazardResult] = [flood_hv_level(await state["hv"].classify(lat, lon))]
+    hv_res = flood_hv_level(await state["hv"].classify(lat, lon))
+    efas: EFASFloodReader = state["efas"]
+    efas_depths = efas.depths(lat, lon) if efas.available() else None
+    efas_res = flood_efas_level(efas_depths) if efas_depths is not None else None
+    results: list[HazardResult] = [combine_flood(hv_res, efas_res)]
 
     geo: Geohazards = state["geo"]
     covered = in_banovina(lat, lon) and geo.available()

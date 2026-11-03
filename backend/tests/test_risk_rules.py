@@ -28,8 +28,13 @@ def test_flood_hv_karlovac_observed():
 @pytest.mark.parametrize("depths, expected", [
     ({10: 0.4, 100: 1.0, 500: 2.0}, Level.HIGH),
     ({10: 0.0, 100: 0.3, 500: 1.0}, Level.MEDIUM),
-    ({10: None, 100: None, 500: 0.2}, Level.LOW),
-    ({10: None, 100: 0.0, 500: None}, Level.NONE),
+    ({10: 0.0, 100: 0.0, 500: 0.2}, Level.LOW),
+    ({10: 0.0, 100: 0.0, 500: 0.0}, Level.NONE),
+    # None = not covered -> NO_DATA, never NONE
+    ({10: None, 100: None, 500: 0.2}, Level.NO_DATA),
+    ({10: None, 100: 0.0, 500: None}, Level.NO_DATA),
+    ({10: None, 100: None, 500: None}, Level.NO_DATA),
+    ({10: 1.0}, Level.NO_DATA),
 ])
 def test_flood_efas(depths, expected):
     assert flood_efas_level(depths).level is expected
@@ -37,10 +42,27 @@ def test_flood_efas(depths, expected):
 
 def test_hv_has_priority_over_efas():
     hv = flood_hv_level({"velika": "outside", "srednja": "outside", "mala": "outside"})
-    efas = flood_efas_level({10: 1.0})
+    efas = flood_efas_level({10: 1.0, 100: 1.0, 500: 1.0})
     assert combine_flood(hv, efas).source == "flood_hv"
     hv_missing = flood_hv_level({"velika": None, "srednja": None, "mala": None})
     assert combine_flood(hv_missing, efas).source == "flood_efas"
+
+
+EFAS_NO_DATA_NOTE = "Europski model EFAS prikazuje samo poplave uz veće rijeke; za ovu točku nema podatka."
+
+
+def test_efas_no_data_note_text():
+    assert flood_efas_level({10: None, 100: None, 500: None}).notes == [EFAS_NO_DATA_NOTE]
+
+
+def test_both_flood_sources_no_data_keeps_both_notes():
+    hv = flood_hv_level({"velika": None, "srednja": None, "mala": None})
+    efas = flood_efas_level({10: None, 100: None, 500: None})
+    r = combine_flood(hv, efas)
+    assert r.level is Level.NO_DATA
+    assert r.source == "flood_hv"
+    assert all(n in r.notes for n in hv.notes)
+    assert EFAS_NO_DATA_NOTE in r.notes
 
 
 @pytest.mark.parametrize("ag, expected", [
