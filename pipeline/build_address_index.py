@@ -74,7 +74,47 @@ def collect_names(zip_path: Path) -> dict[str, tuple[str, str]]:
     return names
 
 
-def iter_addresses(zip_path: Path, names: dict[str, tuple[str, str]]):
+CROATIA_BBOX = (13.4, 42.3, 19.5, 46.6)  # lon_min, lat_min, lon_max, lat_max
+
+
+def parse_address(el, names: dict[str, tuple[str, str]]):
+    """Parse one <ad:Address> element into a row tuple, or None when it has no position.
+
+    The house number is every LocatorDesignator text in file order, concatenated:
+    addressNumber "45" + addressNumberExtension "A" -> "45A", "12" + "/1" -> "12/1".
+    """
+    pos = next((p.text for p in el.iter(f"{GML}pos") if p.text), None)
+    if not pos:
+        return None
+    number = "".join(
+        d.text.strip() for d in el.iter() if local(d.tag) == "designator" and d.text and d.text.strip() and not len(d)
+    )
+    street = settlement = municipality = postcode = ""
+    for comp in el.iter():
+        if local(comp.tag) == "component" and comp.get(XLINK):
+            ref = comp.get(XLINK).lstrip("#")
+            if ref in names:
+                kind, val = names[ref]
+                if kind == "ThoroughfareName" and not street:
+                    street = val
+                elif kind in ("Settlement", "AddressAreaName") and not settlement:
+                    settlement = val
+                elif kind == "PostalDescriptor":
+                    postcode, municipality = val.split("|", 1)
+    # EPSG:3035 GML pos is (northing, easting); with always_xy the transformer wants (easting, northing).
+    northing, easting = (float(v) for v in pos.split()[:2])
+    lon, lat = laea_to_wgs84.transform(easting, northing)
+    return (street, number, settlement, municipality or settlement, postcode, lat, lon)
+
+
+def in_croatia(lat: float, lon: float) -> bool:
+    w, s, e, n = CROATIA_BBOX
+    return w <= lon <= e and s <= lat <= n
+
+
+def iter_addresses(zip_path: Path, names: dict[str, tuple[str, str]], stats: Counter | None = None):
+    """Yield address rows; points outside the Croatia bbox are skipped and counted in stats['skipped']."""
+    stats = stats if stats is not None else Counter()
     with zipfile.ZipFile(zip_path) as z:
         addr_files = [n for n in z.namelist() if n.lower().startswith("address.") and n.lower().endswith((".gml", ".xml"))]
         if not addr_files:
@@ -84,39 +124,29 @@ def iter_addresses(zip_path: Path, names: dict[str, tuple[str, str]]):
                 for _, el in iterparse(fh, events=("end",)):
                     if local(el.tag) != "Address":
                         continue
-                    pos = next((p.text for p in el.iter(f"{GML}pos") if p.text), None)
-                    number = next(
-                        (d.text for d in el.iter() if local(d.tag) == "designator" and d.text and not len(d)),
-                        "",
-                    )
-                    street = ""
-                    settlement = ""
-                    municipality = ""
-                    postcode = ""
-                    for comp in el.iter():
-                        if local(comp.tag) == "component" and comp.get(XLINK):
-                            ref = comp.get(XLINK).lstrip("#")
-                            if ref in names:
-                                kind, val = names[ref]
-                                if kind == "ThoroughfareName" and not street:
-                                    street = val
-                                elif kind in ("Settlement", "AddressAreaName") and not settlement:
-                                    settlement = val
-                                elif kind == "PostalDescriptor":
-                                    pc, po = val.split("|", 1)
-                                    postcode = pc
-                                    municipality = po
+                    row = parse_address(el, names)
                     el.clear()
-                    if not pos:
+                    if row is None:
                         continue
-                    a, b = (float(v) for v in pos.split()[:2])
-                    # EPSG:3035 axis order in GML is northing, easting; fall back if the file uses x,y
-                    lon, lat = laea_to_wgs84.transform(b, a)
-                    if not (42.0 < lat < 47.0 and 13.0 < lon < 20.0):
-                        lon, lat = laea_to_wgs84.transform(a, b)
-                    yield (
-                        street, number.strip(), settlement, municipality or settlement, postcode, lat, lon,
-                    )
+                    if not in_croatia(row[5], row[6]):
+                        stats["skipped"] += 1
+                        continue
+                    yield row
+
+
+def search_text(street: str, number: str, settlement: str, municipality: str, postcode: str) -> str:
+    """Text indexed by FTS5. Words with Croatian D-stroke get both a 'd' and a 'dj' form
+    (Djakovo -> 'dakovo djakovo'), because unicode61 remove_diacritics does not fold it."""
+    label = " ".join(p for p in (
+        street, number, settlement, municipality if municipality != settlement else "", postcode,
+    ) if p)
+    extra = []
+    for word in label.split():
+        low = word.lower()
+        if "đ" in low:
+            extra.append(low.replace("đ", "d"))
+            extra.append(low.replace("đ", "dj"))
+    return " ".join([label, *extra])
 
 
 def inspect(zip_path: Path, limit: int = 300_000) -> None:
@@ -144,12 +174,13 @@ def build(zip_path: Path, out: Path) -> None:
         PRAGMA temp_store = MEMORY;
         CREATE TABLE address(id INTEGER PRIMARY KEY, street TEXT, number TEXT, settlement TEXT,
                              municipality TEXT, postcode TEXT, lat REAL, lon REAL);
-        CREATE VIRTUAL TABLE address_fts USING fts5(label, content='address', content_rowid='id',
+        CREATE VIRTUAL TABLE address_fts USING fts5(label, content='',
                                                     tokenize='unicode61 remove_diacritics 2');
     """)
     batch: list[tuple] = []
     n = 0
-    for row in iter_addresses(zip_path, names):
+    stats: Counter[str] = Counter()
+    for row in iter_addresses(zip_path, names, stats):
         batch.append(row)
         n += 1
         if len(batch) >= 100_000:
@@ -168,17 +199,15 @@ def build(zip_path: Path, out: Path) -> None:
         db.commit()
         batch.clear()
     print("building FTS5 index...", file=sys.stderr)
-    db.execute("""
-        INSERT INTO address_fts(rowid, label)
-        SELECT id,
-               trim(street || ' ' || number || ' ' || settlement || ' ' ||
-                    CASE WHEN municipality != settlement THEN municipality ELSE '' END || ' ' || postcode)
-        FROM address;
-    """)
+    rows = db.execute("SELECT id, street, number, settlement, municipality, postcode FROM address ORDER BY id").fetchall()
+    db.executemany(
+        "INSERT INTO address_fts(rowid, label) VALUES (?, ?)",
+        ((r[0], search_text(*r[1:])) for r in rows),
+    )
     db.commit()
     db.execute("PRAGMA journal_mode = DELETE;")
     db.close()
-    print(f"done: {n} addresses -> {out}")
+    print(f"done: {n} addresses indexed, {stats['skipped']} skipped (outside Croatia bbox) -> {out}")
 
 
 def main() -> None:

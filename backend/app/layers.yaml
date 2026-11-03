@@ -95,6 +95,8 @@ layers:
     licence: Otvorena dozvola RH
     url: https://data.gov.hr/ckan/hr/dataset/adrese-inspire
     download: https://geoportal.dgu.hr/services/atom/INSPIRE_Addresses_(AD).zip
+    year: 2026  # GML header timeStamp 2026-11-01
+    resolution: točkovni (adresna točka)
     coverage: croatia
 
 coverages:

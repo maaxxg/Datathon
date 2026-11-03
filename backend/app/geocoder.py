@@ -6,20 +6,28 @@ import sqlite3
 from pathlib import Path
 
 TOKEN_RE = re.compile(r"\w+", re.UNICODE)
+# House number: digits, optional letter suffix, optional "/sub" part ("45", "45A", "12/1", "12/1A").
+NUMBER_RE = re.compile(r"(?<![\w/])\d+[^\W\d_]{0,2}(?:/\d+[^\W\d_]{0,2})?(?![\w/])", re.UNICODE)
+
+
+def fold_query(raw: str) -> str:
+    """Map Croatian D-stroke to 'd' (the index holds both 'd' and 'dj' forms). 'dj' is never rewritten."""
+    return raw.replace("đ", "d").replace("Đ", "D")
 
 
 def fts_query(raw: str) -> str:
-    """Turn user input into a safe FTS5 prefix query (each token gets a trailing *)."""
-    tokens = TOKEN_RE.findall(raw.strip())
+    """Turn user input into a safe FTS5 prefix query: every token is a quoted bound string with a trailing *."""
+    tokens = TOKEN_RE.findall(fold_query(raw).strip())
     if not tokens:
         return ""
     return " ".join(f'"{t}"*' for t in tokens[:8])
 
 
 def _number_token(raw: str) -> str:
-    """First house-number-like token (starts with digit, <= 6 chars, not a 5-digit postcode)."""
-    for tok in TOKEN_RE.findall(raw.strip()):
-        if tok[0].isdigit() and not (len(tok) == 5 and tok.isdigit()):
+    """First house-number-like token ("45", "45a", "12/1"), not a 5-digit postcode."""
+    for m in NUMBER_RE.finditer(raw):
+        tok = m.group(0)
+        if not (len(tok) == 5 and tok.isdigit()):
             return tok.lower()
     return ""
 
@@ -58,10 +66,17 @@ class AddressGeocoder:
             FROM address_fts f
             JOIN address a ON a.id = f.rowid
             WHERE address_fts MATCH ?
-            ORDER BY CASE WHEN ? != '' AND lower(a.number) = ? THEN 0 ELSE 1 END, bm25(address_fts)
+            ORDER BY CASE WHEN ? = '' THEN 3
+                          WHEN lower(a.number) = ? THEN 0
+                          -- "45" -> "45A", "45/1" before "450" (a suffix is not another digit)
+                          WHEN lower(a.number) LIKE ? || '%'
+                               AND substr(a.number, length(?) + 1, 1) NOT GLOB '[0-9]' THEN 1
+                          WHEN lower(a.number) LIKE ? || '%' THEN 2
+                          ELSE 3 END,
+                     bm25(address_fts), a.id
             LIMIT ?
             """,
-            (match, num_tok, num_tok, max(1, min(limit, 50))),
+            (match, num_tok, num_tok, num_tok, num_tok, num_tok, max(1, min(limit, 50))),
         )
         results = []
         for r in cur.fetchall():

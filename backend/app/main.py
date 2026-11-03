@@ -61,7 +61,7 @@ async def sources() -> dict:
 
 
 @app.get("/api/addresses")
-async def addresses(q: str = Query("", min_length=0, max_length=120), limit: int = Query(10, ge=1, le=50)) -> dict:
+def addresses(q: str = Query("", min_length=0, max_length=120), limit: int = Query(10, ge=1, le=50)) -> dict:
     geocoder: AddressGeocoder = state["geocoder"]
     return {
         "available": geocoder.available(),
