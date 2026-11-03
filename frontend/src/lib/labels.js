@@ -126,7 +126,7 @@ export const MAP_LEGEND = {
 		unfavourable: { colour: '#4c1d95', text: 'Nepovoljno za gradnju' },
 		coverage: { colour: '#0f766e', text: 'Obuhvat studije (samo Banovina)' },
 		coverageNote: 'Obuhvat geohazarda: samo Banovina (Sisačko-moslavačka)',
-		note: 'Pojednostavljeni prikaz: rubovi većinom unutar ~20 m (klizišta ~50 m, ponegdje i više); manji dijelovi (ispod 1 ha) izostavljeni. Razred za odabranu točku daje izvještaj iz izvornih podataka.'
+		note: 'Pojednostavljeni prikaz: rubovi većinom unutar ~20 m (klizišta ~40 m, ponegdje i više); manji dijelovi izostavljeni (klizišta do ~2 ha, ostali slojevi do ~0,4 ha). Razred za odabranu točku daje izvještaj iz izvornih podataka.'
 	},
 	efas: {
 		rows: [

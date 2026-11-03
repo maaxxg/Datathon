@@ -155,6 +155,7 @@
 
 	// ---- EFAS PNG overlay (corners TL, TR, BR, BL as lon,lat; rows resampled to Web Mercator by the pipeline)
 	function failEfas() {
+		efasToken++;
 		removeAll(['efas-layer'], ['efas-img']);
 		showEfas = false;
 		unavailable.efas = true;
