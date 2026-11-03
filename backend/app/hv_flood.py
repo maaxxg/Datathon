@@ -31,8 +31,8 @@ LEGEND = {
     (0x7A, 0x8E, 0xF5): "d_gt_2_5",
     (0x00, 0x4D, 0xA8): "permanent_water",
 }
-TILE_DEG = 0.01        # ~1.1 km; the layer does not render at small scales
-TILE_PX = 512          # ~2 m per pixel
+TILE_DEG = 0.02        # ~2.2 km; WMS layer only renders within ~1:15k..1:100k scale range
+TILE_PX = 256          # ~8.5 m per pixel (scale ~1:31,000 in OGC WMS 1.3.0)
 MAX_COLOUR_DIST = 24   # tolerance for resampling at tile edges
 
 
