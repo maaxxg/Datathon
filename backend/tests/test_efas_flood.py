@@ -31,8 +31,10 @@ def test_efas_reader_and_fallback(tmp_path):
     depths = reader.depths(45.45, 16.55)
     assert depths == {10: 0.0, 100: 0.65, 500: 1.4}
 
-    # Cell with nodata -> 0.0 m (dry)
-    assert reader.depths(45.95, 16.05) == {10: 0.0, 100: 0.0, 500: 0.0}
+    # Cell with nodata -> None (no data, D20), never "dry"
+    nodata_depths = reader.depths(45.95, 16.05)
+    assert nodata_depths == {10: None, 100: None, 500: None}
+    assert flood_efas_level(nodata_depths).level is Level.NO_DATA
 
     # Outside raster bounds -> None per return period
     assert reader.depths(43.0, 16.5) == {10: None, 100: None, 500: None}
@@ -56,4 +58,14 @@ def test_efas_partial_directory_not_available(tmp_path):
     _write_raster(tmp_path / "rp10.tif", 0.5)
     reader = EFASFloodReader(tmp_path)
     assert not reader.available()
+    reader.close()
+
+
+def test_efas_real_zero_stays_zero(tmp_path):
+    for rp in (10, 100, 500):
+        _write_raster(tmp_path / f"rp{rp}.tif", 0.0)
+    reader = EFASFloodReader(tmp_path)
+    depths = reader.depths(45.45, 16.55)
+    assert depths == {10: 0.0, 100: 0.0, 500: 0.0}
+    assert flood_efas_level(depths).level is Level.NONE
     reader.close()

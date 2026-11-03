@@ -48,6 +48,13 @@ def test_hv_has_priority_over_efas():
     assert combine_flood(hv_missing, efas).source == "flood_efas"
 
 
+EFAS_NO_DATA_NOTE = "Europski model EFAS prikazuje samo poplave uz veće rijeke; za ovu točku nema podatka."
+
+
+def test_efas_no_data_note_text():
+    assert flood_efas_level({10: None, 100: None, 500: None}).notes == [EFAS_NO_DATA_NOTE]
+
+
 def test_both_flood_sources_no_data_keeps_both_notes():
     hv = flood_hv_level({"velika": None, "srednja": None, "mala": None})
     efas = flood_efas_level({10: None, 100: None, 500: None})
@@ -55,7 +62,7 @@ def test_both_flood_sources_no_data_keeps_both_notes():
     assert r.level is Level.NO_DATA
     assert r.source == "flood_hv"
     assert all(n in r.notes for n in hv.notes)
-    assert "Europski model EFAS ne pokriva ovu točku." in r.notes
+    assert EFAS_NO_DATA_NOTE in r.notes
 
 
 @pytest.mark.parametrize("ag, expected", [

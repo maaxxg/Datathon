@@ -10,6 +10,7 @@ downloading the full ~300 MB continental GeoTIFFs.
 from __future__ import annotations
 
 import argparse
+import datetime
 import time
 from pathlib import Path
 
@@ -52,6 +53,7 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=Path("data/efas"))
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
+    print(f"EFAS v3.1.1, clipped on {datetime.date.today().isoformat()}")
     for rp in RETURN_PERIODS:
         t0 = time.perf_counter()
         path = clip_rp(rp, args.out)

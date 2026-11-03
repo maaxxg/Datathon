@@ -7,12 +7,13 @@ from app.risk_rules import (
 )
 
 # Ground-truth observations recorded by scripts/validate_known_points.py on 2. 11. 2026.
+# EFAS values re-read 3. 11. 2026 on clipped v3.1.1 files; -9999 (nodata) -> None (D20).
 OBSERVED_POINTS = [
     (
         "p01_petrinja_centar",
         True,
         {"velika": "outside", "srednja": "outside", "mala": "d_1_5_2_5"},
-        {10: 0.0, 100: 0.0, 500: 0.0},
+        {10: None, 100: None, 500: None},
         0.1145,
         {"landslide": None, "liquefaction": "visoka", "sinkhole": None, "unfavourable": False},
         ("liquefaction", Level.HIGH),
@@ -21,7 +22,7 @@ OBSERVED_POINTS = [
         "p02_petrinja_gupca_12",
         True,
         {"velika": "outside", "srednja": "outside", "mala": "outside"},
-        {10: 0.0, 100: 0.0, 500: 0.0},
+        {10: None, 100: None, 500: None},
         0.1145,
         {"landslide": None, "liquefaction": "visoka", "sinkhole": None, "unfavourable": False},
         ("liquefaction", Level.HIGH),
@@ -30,7 +31,7 @@ OBSERVED_POINTS = [
         "p03_sisak_rimska_19",
         True,
         {"velika": "outside", "srednja": "outside", "mala": "outside"},
-        {10: 0.0, 100: 0.0, 500: 0.0},
+        {10: None, 100: None, 500: None},
         0.1086,
         {"landslide": None, "liquefaction": "visoka", "sinkhole": None, "unfavourable": False},
         ("liquefaction", Level.HIGH),
@@ -39,7 +40,7 @@ OBSERVED_POINTS = [
         "p04_glina_centar",
         True,
         {"velika": "outside", "srednja": "outside", "mala": "d_lt_0_5"},
-        {10: 0.0, 100: 0.0, 500: 0.0},
+        {10: None, 100: None, 500: None},
         0.1159,
         {"landslide": None, "liquefaction": "visoka", "sinkhole": None, "unfavourable": False},
         ("liquefaction", Level.HIGH),
@@ -48,7 +49,7 @@ OBSERVED_POINTS = [
         "p05_hrvatska_kostajnica",
         True,
         {"velika": "outside", "srednja": "outside", "mala": "outside"},
-        {10: 0.0, 100: 0.0, 500: 0.0},
+        {10: None, 100: None, 500: None},
         0.1052,
         {"landslide": "visoka", "liquefaction": None, "sinkhole": None, "unfavourable": False},
         ("landslide", Level.HIGH),
@@ -57,7 +58,7 @@ OBSERVED_POINTS = [
         "p06_karlovac_kupa",
         False,
         {"velika": "outside", "srednja": "outside", "mala": "d_1_5_2_5"},
-        {10: 0.0, 100: 0.0, 500: 0.0},
+        {10: None, 100: None, 500: None},
         0.1759,
         {"landslide": None, "liquefaction": None, "sinkhole": None, "unfavourable": False},
         ("seismic", Level.SEISMIC_ABOVE_LOW),
@@ -75,7 +76,7 @@ OBSERVED_POINTS = [
         "p08_zagreb_sava",
         False,
         {"velika": "outside", "srednja": "outside", "mala": "d_0_5_1_5"},
-        {10: 0.0, 100: 0.0, 500: 0.0},
+        {10: None, 100: None, 500: None},
         0.2452,
         {"landslide": None, "liquefaction": None, "sinkhole": None, "unfavourable": False},
         ("seismic", Level.SEISMIC_ABOVE_LOW),
@@ -84,7 +85,7 @@ OBSERVED_POINTS = [
         "p09_split_centar",
         False,
         {"velika": "outside", "srednja": "outside", "mala": "d_0_5_1_5"},
-        {10: 0.0, 100: 0.0, 500: 0.0},
+        {10: None, 100: None, 500: None},
         0.1694,
         {"landslide": None, "liquefaction": None, "sinkhole": None, "unfavourable": False},
         ("seismic", Level.SEISMIC_ABOVE_LOW),
@@ -93,7 +94,7 @@ OBSERVED_POINTS = [
         "p10_osijek_centar",
         False,
         {"velika": "outside", "srednja": "outside", "mala": "outside"},
-        {10: 0.0, 100: 0.0, 500: 0.0},
+        {10: None, 100: None, 500: None},
         0.0688,
         {"landslide": None, "liquefaction": None, "sinkhole": None, "unfavourable": False},
         ("seismic", Level.SEISMIC_LOW),
@@ -116,3 +117,10 @@ def test_ten_known_points_rules(pid, in_ban, hv_cls, efas_d, ag, geo, expected_t
     top = most_significant(results)
     assert top is not None, f"{pid} returned no top hazard"
     assert (top.hazard, top.level) == expected_top
+
+
+def test_petrinja_efas_nodata_with_hv_no_data_is_no_data_not_none():
+    # p01: EFAS raw -9999 on all return periods; with HV unavailable the flood result must be NO_DATA.
+    hv = flood_hv_level({"velika": None, "srednja": None, "mala": None})
+    r = combine_flood(hv, flood_efas_level({10: None, 100: None, 500: None}))
+    assert r.level is Level.NO_DATA

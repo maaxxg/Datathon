@@ -75,7 +75,7 @@ def flood_efas_level(depths_m: dict[int, float | None]) -> HazardResult:
     detail = {f"rp{k}": v for k, v in sorted(depths_m.items())}
     if any(depths_m.get(rp) is None for rp in (10, 100, 500)):
         return HazardResult("flood", Level.NO_DATA, "flood_efas", detail,
-                            ["Europski model EFAS ne pokriva ovu točku."])
+                            ["Europski model EFAS prikazuje samo poplave uz veće rijeke; za ovu točku nema podatka."])
     notes = ["Europski model (90 m), okvirna procjena; podatak s karte Hrvatskih voda ovdje nije dostupan."]
 
     if depths_m[10] > 0:
