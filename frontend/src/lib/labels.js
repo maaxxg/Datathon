@@ -90,11 +90,11 @@ export const FLOOD_DEPTH_TEXT = {
 };
 
 export const PRESET_LOCATIONS = [
+	{ name: 'Zagreb uz Savu', lat: 45.7876, lon: 15.9797 },
 	{ name: 'Petrinja', lat: 45.4375, lon: 16.2739 },
 	{ name: 'Sisak', lat: 45.484, lon: 16.374 },
 	{ name: 'Karlovac', lat: 45.487, lon: 15.548 },
 	{ name: 'Gunja', lat: 44.881, lon: 18.845 },
-	{ name: 'Zagreb uz Savu', lat: 45.793, lon: 15.96 },
 	{ name: 'Split', lat: 43.5081, lon: 16.4402 }
 ];
 

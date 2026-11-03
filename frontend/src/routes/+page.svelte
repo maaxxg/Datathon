@@ -1,23 +1,29 @@
 <script>
-	import { onMount } from 'svelte';
-	import maplibregl from 'maplibre-gl';
-	import 'maplibre-gl/dist/maplibre-gl.css';
-	import { HAZARD_META, LEVEL_META, FLOOD_DEPTH_TEXT, PRESET_LOCATIONS, fmt } from '$lib/labels.js';
+	import { onMount } from "svelte";
+	import maplibregl from "maplibre-gl";
+	import "maplibre-gl/dist/maplibre-gl.css";
+	import {
+		HAZARD_META,
+		LEVEL_META,
+		FLOOD_DEPTH_TEXT,
+		PRESET_LOCATIONS,
+		fmt,
+	} from "$lib/labels.js";
 
-	let searchQuery = $state('');
+	let searchQuery = $state("");
 	let suggestions = $state([]);
 	let geocoderAvailable = $state(true);
 	let showSuggestions = $state(false);
-	let selectedLabel = $state('Petrinja');
-	let lat = $state(45.4375);
-	let lon = $state(16.2739);
+	let selectedLabel = $state("Zagreb uz Savu");
+	let lat = $state(45.7876);
+	let lon = $state(15.9797);
 
 	let report = $state(null);
 	let loading = $state(false);
-	let errorMsg = $state('');
+	let errorMsg = $state("");
 
 	let showHvLayer = $state(false);
-	let hvScenario = $state('srednja');
+	let hvScenario = $state("srednja");
 	let mapZoom = $state(12);
 	// Verified 3. 11. 2026.: HV WMS renders pixels only for tile zoom 12-14.
 	const HV_MIN_ZOOM = 12;
@@ -28,32 +34,45 @@
 	let marker;
 	let debounceTimer;
 
-	async function fetchReport(targetLat, targetLon, labelText = '') {
+	// Opasnosti s podacima za odabranu lokaciju vs. opasnosti bez podataka
+	let availableHazards = $derived(
+		report?.hazards?.filter((h) => h.level !== "nema_podataka") || [],
+	);
+	let noDataHazards = $derived(
+		report?.hazards?.filter((h) => h.level === "nema_podataka") || [],
+	);
+
+	async function fetchReport(targetLat, targetLon, labelText = "") {
 		lat = Number(targetLat.toFixed(5));
 		lon = Number(targetLon.toFixed(5));
 		if (labelText) {
 			selectedLabel = labelText;
 		}
 		loading = true;
-		errorMsg = '';
+		errorMsg = "";
 		if (map && marker) {
 			marker.setLngLat([lon, lat]);
-			map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13), essential: true });
+			map.flyTo({
+				center: [lon, lat],
+				zoom: Math.max(map.getZoom(), 13),
+				essential: true,
+			});
 		}
 		try {
 			const res = await fetch(`/api/report?lat=${lat}&lon=${lon}`);
 			if (!res.ok) {
 				const body = await res.json().catch(() => ({}));
-				if (Array.isArray(body.detail)) throw new Error('Neispravna lokacija.');
-					throw new Error(
-						typeof body.detail === 'string' && body.detail
-							? body.detail
-							: `Greška poslužitelja (${res.status})`
-					);
+				if (Array.isArray(body.detail))
+					throw new Error("Neispravna lokacija.");
+				throw new Error(
+					typeof body.detail === "string" && body.detail
+						? body.detail
+						: `Greška poslužitelja (${res.status})`,
+				);
 			}
 			report = await res.json();
 		} catch (err) {
-			errorMsg = err.message || 'Nije moguće dohvatiti izvještaj.';
+			errorMsg = err.message || "Nije moguće dohvatiti izvještaj.";
 		} finally {
 			loading = false;
 		}
@@ -69,7 +88,9 @@
 		}
 		debounceTimer = setTimeout(async () => {
 			try {
-				const res = await fetch(`/api/addresses?q=${encodeURIComponent(searchQuery)}&limit=8`);
+				const res = await fetch(
+					`/api/addresses?q=${encodeURIComponent(searchQuery)}&limit=8`,
+				);
 				if (!res.ok) {
 					geocoderAvailable = false;
 					return;
@@ -100,8 +121,8 @@
 
 	function updateWmsLayer() {
 		if (!map || !map.isStyleLoaded()) return;
-		const sourceId = 'hv-flood-wms';
-		const layerId = 'hv-flood-layer';
+		const sourceId = "hv-flood-wms";
+		const layerId = "hv-flood-layer";
 		if (map.getLayer(layerId)) map.removeLayer(layerId);
 		if (map.getSource(sourceId)) map.removeSource(sourceId);
 		if (!showHvLayer) return;
@@ -113,18 +134,18 @@
 			`&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true`;
 
 		map.addSource(sourceId, {
-			type: 'raster',
+			type: "raster",
 			tiles: [tileUrl],
 			tileSize: 256,
-			attribution: '© Hrvatske vode (2019.)'
+			attribution: "© Hrvatske vode (2019.)",
 		});
 		map.addLayer({
 			id: layerId,
-			type: 'raster',
+			type: "raster",
 			source: sourceId,
 			minzoom: HV_MIN_ZOOM,
 			maxzoom: HV_MAX_ZOOM,
-			paint: { 'raster-opacity': 0.72 }
+			paint: { "raster-opacity": 0.72 },
 		});
 	}
 
@@ -135,31 +156,39 @@
 				version: 8,
 				sources: {
 					osm: {
-						type: 'raster',
-						tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+						type: "raster",
+						tiles: [
+							"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+						],
 						tileSize: 256,
 						attribution:
-							'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
-					}
+							'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>',
+					},
 				},
-				layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
+				layers: [{ id: "osm", type: "raster", source: "osm" }],
 			},
 			center: [lon, lat],
-			zoom: 12
+			zoom: 13,
 		});
-		map.addControl(new maplibregl.NavigationControl(), 'top-right');
-		map.on('zoom', () => (mapZoom = map.getZoom()));
+		map.addControl(new maplibregl.NavigationControl(), "top-right");
+		map.on("zoom", () => (mapZoom = map.getZoom()));
 		mapZoom = map.getZoom();
 
-		marker = new maplibregl.Marker({ color: '#1d4ed8' }).setLngLat([lon, lat]).addTo(map);
+		marker = new maplibregl.Marker({ color: "#1d4ed8" })
+			.setLngLat([lon, lat])
+			.addTo(map);
 
-		map.on('click', (e) => {
+		map.on("click", (e) => {
 			const cLat = e.lngLat.lat;
 			const cLon = e.lngLat.lng;
-			fetchReport(cLat, cLon, `Odabrana točka na karti (${fmt(cLat, 4)}; ${fmt(cLon, 4)})`);
+			fetchReport(
+				cLat,
+				cLon,
+				`Odabrana točka na karti (${fmt(cLat, 4)}; ${fmt(cLon, 4)})`,
+			);
 		});
 
-		map.on('load', () => {
+		map.on("load", () => {
 			updateWmsLayer();
 		});
 
@@ -169,14 +198,19 @@
 
 <section class="search-panel no-print" aria-label="Pretraga lokacije">
 	<div class="search-header">
-		<h1>Provjerite izloženost lokacije poplavama, potresu i geohazardima</h1>
+		<h1>
+			Provjerite izloženost lokacije poplavama, potresu i geohazardima
+		</h1>
 		<p>
-			Unesite adresu u Hrvatskoj (iz službenog registra DGU Adrese INSPIRE) ili kliknite izravno na kartu.
+			Unesite adresu u Hrvatskoj (iz službenog registra DGU Adrese
+			INSPIRE) ili kliknite izravno na kartu.
 		</p>
 	</div>
 
 	<div class="search-box-wrap">
-		<label for="address-input" class="sr-only">Unesite adresu ili naselje</label>
+		<label for="address-input" class="sr-only"
+			>Unesite adresu ili naselje</label
+		>
 		<div class="search-input-row">
 			<input
 				id="address-input"
@@ -185,35 +219,40 @@
 				value={searchQuery}
 				oninput={onSearchInput}
 				onkeydown={(e) => {
-					if (e.key === 'Escape') showSuggestions = false;
+					if (e.key === "Escape") showSuggestions = false;
 				}}
 				onfocus={() => (showSuggestions = suggestions.length > 0)}
 				autocomplete="off"
 			/>
-			<button type="button" class="btn-secondary" onclick={() => window.print()}>
+			<button
+				type="button"
+				class="btn-secondary"
+				onclick={() => window.print()}
+			>
 				🖨️ Ispis / PDF
 			</button>
 		</div>
 
 		{#if !geocoderAvailable}
 			<p class="geocoder-msg" role="status">
-				Pretraga adresa trenutačno nije dostupna. Odaberite lokaciju klikom na kartu.
+				Pretraga adresa trenutačno nije dostupna. Odaberite lokaciju
+				klikom na kartu.
 			</p>
 		{/if}
 
 		{#if showSuggestions && suggestions.length > 0}
 			<ul
 				class="suggestions-list"
-				aria-label="Predložene adrese"
-				onkeydown={(e) => {
-					if (e.key === 'Escape') showSuggestions = false;
-				}}
-			>
+				aria-label="Predložene adrese">
 				{#each suggestions as item}
 					<li>
-						<button type="button" onclick={() => selectAddress(item)}>
+						<button
+							type="button"
+							onclick={() => selectAddress(item)}
+						>
 							<strong>{item.label}</strong>
-							<span>({fmt(item.lat, 4)}; {fmt(item.lon, 4)})</span>
+							<span>({fmt(item.lat, 4)}; {fmt(item.lon, 4)})</span
+							>
 						</button>
 					</li>
 				{/each}
@@ -243,7 +282,11 @@
 				<span>Prikaži WMS sloj poplava (Hrvatske vode)</span>
 			</label>
 			{#if showHvLayer}
-				<select bind:value={hvScenario} onchange={updateWmsLayer} aria-label="Scenarij poplave">
+				<select
+					bind:value={hvScenario}
+					onchange={updateWmsLayer}
+					aria-label="Scenarij poplave"
+				>
 					<option value="velika">Velika vjerojatnost</option>
 					<option value="srednja">Srednja vjerojatnost</option>
 					<option value="mala">Mala vjerojatnost</option>
@@ -251,11 +294,14 @@
 			{/if}
 		</div>
 		{#if showHvLayer && (mapZoom < HV_MIN_ZOOM || mapZoom >= HV_MAX_ZOOM)}
-			<p class="map-hint" role="status">Sloj poplava vidljiv je pri zumu 12–14.</p>
+			<p class="map-hint" role="status">
+				Sloj poplava vidljiv je pri zumu 12–14.
+			</p>
 		{/if}
 		<div class="map-frame" bind:this={mapContainer}></div>
 		<p class="map-hint">
-			Savjet: Kliknite bilo gdje na kartu unutar Republike Hrvatske za izračun izvještaja za tu točku.
+			Savjet: Kliknite bilo gdje na kartu unutar Republike Hrvatske za
+			izračun izvještaja za tu točku.
 		</p>
 	</section>
 
@@ -264,27 +310,39 @@
 			<div>
 				<span class="eyebrow">Izvještaj za lokaciju</span>
 				<h2>{selectedLabel}</h2>
-				<p class="coords">WGS84 koordinate: <code>{fmt(lat, 5)}; {fmt(lon, 5)}</code></p>
+				<p class="coords">
+					WGS84 koordinate: <code>{fmt(lat, 5)}; {fmt(lon, 5)}</code>
+				</p>
 			</div>
 		</div>
 
 		{#if loading}
-			<div class="status-card">Učitavanje izvještaja iz javnih servisa...</div>
+			<div class="status-card">
+				Učitavanje izvještaja iz javnih servisa...
+			</div>
 		{:else if errorMsg}
 			<div class="status-card status-error" role="alert">
-				<strong>Greška:</strong> {errorMsg}
+				<strong>Greška:</strong>
+				{errorMsg}
 			</div>
 		{:else if report}
 			{@const top = report.most_significant}
 			{#if top}
-				{@const topMeta = LEVEL_META[top.level] || LEVEL_META.nema_podataka}
-				{@const topHazard = HAZARD_META[top.hazard] || { title: top.hazard, icon: '⚠️' }}
+				{@const topMeta =
+					LEVEL_META[top.level] || LEVEL_META.nema_podataka}
+				{@const topHazard = HAZARD_META[top.hazard] || {
+					title: top.hazard,
+					icon: "⚠️",
+				}}
 				<div class="top-risk-banner tone-{topMeta.tone}">
 					<div class="top-risk-header">
 						<span class="badge tone-{topMeta.tone}">
-							<span aria-hidden="true">{topMeta.icon}</span> {topMeta.label}
+							<span aria-hidden="true">{topMeta.icon}</span>
+							{topMeta.label}
 						</span>
-						<span class="top-risk-tag">Najznačajniji utvrđeni rizik</span>
+						<span class="top-risk-tag"
+							>Najznačajniji utvrđeni rizik</span
+						>
 					</div>
 					<h3>{topHazard.icon} {topHazard.title}</h3>
 					{#if report.summary}
@@ -294,19 +352,27 @@
 			{:else if report.all_no_data}
 				<div class="top-risk-banner tone-nodata">
 					<div class="top-risk-header">
-						<span class="badge tone-nodata"><span aria-hidden="true">—</span> NEMA PODATAKA ZA OVU LOKACIJU</span>
+						<span class="badge tone-nodata"
+							><span aria-hidden="true">—</span> NEMA PODATAKA ZA OVU
+							LOKACIJU</span
+						>
 					</div>
 					{#if report.summary}
 						<p>{report.summary}</p>
 					{/if}
 				</div>
-			{:else if report.hazards.some((x) => x.level === 'nema_podataka')}
+			{:else if report.hazards.some((x) => x.level === "nema_podataka")}
 				<div class="top-risk-banner tone-none">
 					<div class="top-risk-header">
-						<span class="badge tone-none"><span aria-hidden="true">○</span> NEMA UTVRĐENE POVIŠENE OPASNOSTI</span>
+						<span class="badge tone-none"
+							><span aria-hidden="true">○</span> NEMA UTVRĐENE POVIŠENE
+							OPASNOSTI</span
+						>
 					</div>
 					<h3>Prema dostupnim kartama nije utvrđen povišeni rizik</h3>
-					<p class="banner-extra">Za neke opasnosti nema podataka (vidi kartice ispod).</p>
+					<p class="banner-extra">
+						Za neke opasnosti nema podataka (vidi kartice ispod).
+					</p>
 					{#if report.summary}
 						<p>{report.summary}</p>
 					{/if}
@@ -314,7 +380,10 @@
 			{:else}
 				<div class="top-risk-banner tone-none">
 					<div class="top-risk-header">
-						<span class="badge tone-none"><span aria-hidden="true">✓</span> NEMA UTVRĐENE POVIŠENE OPASNOSTI</span>
+						<span class="badge tone-none"
+							><span aria-hidden="true">✓</span> NEMA UTVRĐENE POVIŠENE
+							OPASNOSTI</span
+						>
 					</div>
 					<h3>Prema dostupnim kartama nije utvrđen povišeni rizik</h3>
 					{#if report.summary}
@@ -324,139 +393,69 @@
 			{/if}
 
 			<div class="cards-list">
-				{#each report.hazards as h}
-					{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, subtitle: '', icon: 'ℹ️' }}
-					{@const lvl = LEVEL_META[h.level] || LEVEL_META.nema_podataka}
-					<article class="hazard-card tone-border-{lvl.tone}">
-						<div class="card-top">
-							<div>
-								<h3><span aria-hidden="true">{meta.icon}</span> {meta.title}</h3>
-								{#if meta.subtitle}
-									<p class="card-sub">{meta.subtitle}</p>
-								{/if}
-							</div>
-							<span class="badge tone-{lvl.tone}">
-								<span aria-hidden="true">{lvl.icon}</span> {lvl.label}
-							</span>
-						</div>
-
-						{#if h.explanation}
-							<p class="card-explanation">{h.explanation}</p>
-						{/if}
-
-						{#if h.detail && h.hazard === 'flood' && h.level !== 'nema_podataka' && h.detail.velika !== undefined}
-						<dl class="detail-grid">
-							<div>
-								<dt>Velika vjerojatnost:</dt>
-								<dd>{FLOOD_DEPTH_TEXT[h.detail.velika] || h.detail.velika || 'nema podatka'}</dd>
-							</div>
-							<div>
-								<dt>Srednja vjerojatnost:</dt>
-								<dd>{FLOOD_DEPTH_TEXT[h.detail.srednja] || h.detail.srednja || 'nema podatka'}</dd>
-							</div>
-							<div>
-								<dt>Mala vjerojatnost:</dt>
-								<dd>{FLOOD_DEPTH_TEXT[h.detail.mala] || h.detail.mala || 'nema podatka'}</dd>
-							</div>
-						</dl>
-					{:else if h.detail && h.hazard === 'flood' && h.detail.rp10 !== undefined}
-						<dl class="detail-grid">
-							{#each [['10', h.detail.rp10], ['100', h.detail.rp100], ['500', h.detail.rp500]] as [rp, val]}
-								<div>
-									<dt>Povratno razdoblje {rp} god.:</dt>
-									<dd>{val === null || val === undefined ? 'nema podatka' : `${fmt(val)} m`}</dd>
-								</div>
-							{/each}
-						</dl>
-					{:else if h.detail && h.hazard === 'seismic' && h.detail.ag_g !== undefined}
-						<dl class="detail-grid">
-							<div>
-								<dt>Vršno ubrzanje tla (ag, 475 god.):</dt>
-								<dd><strong>{fmt(h.detail.ag_g)} g</strong></dd>
-							</div>
-							{#if h.detail.udaljenost_km !== undefined && h.detail.udaljenost_km !== null}
-								<div>
-									<dt>Udaljenost do točke mreže:</dt>
-									<dd>{fmt(h.detail.udaljenost_km)} km</dd>
-								</div>
-							{/if}
-						</dl>
-					{:else if h.detail && h.detail.podloznost}
-						<dl class="detail-grid">
-							<div>
-								<dt>Razred podložnosti u studiji:</dt>
-								<dd><strong>{h.detail.podloznost}</strong></dd>
-							</div>
-						</dl>
-					{:else if h.detail && h.detail.dubina_do !== undefined}
-						<dl class="detail-grid">
-							<div>
-								<dt>Dubina do podzemne vode:</dt>
-								<dd><strong>{fmt(h.detail.dubina_do)} m</strong></dd>
-							</div>
-							{#if h.detail.udaljenost_m !== undefined && h.detail.udaljenost_m !== null}
-								<div>
-									<dt>Udaljenost bušotine:</dt>
-									<dd>{fmt(h.detail.udaljenost_m)} m</dd>
-								</div>
-							{/if}
-						</dl>
-					{/if}
-
-					{#if h.notes && h.notes.length > 0}
-							<ul class="card-notes">
-								{#each h.notes as note}
-									<li>{note}</li>
-								{/each}
-							</ul>
-						{/if}
-
-						{#if h.source && h.source.title}
-						<footer class="card-source">
-							<span>
-								<strong>Izvor:</strong>
-								{[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
-								{#if h.source.year || h.source.resolution}
-									({[h.source.year, h.source.resolution && `rezolucija: ${h.source.resolution}`]
-										.filter(Boolean)
-										.join(', ')})
-								{/if}
-							</span>
-							{#if h.source.url && h.source.url !== 'TBD'}
-								<a href={h.source.url} target="_blank" rel="noopener noreferrer">Poveznica na izvor ↗</a>
-							{/if}
-							{#if h.source.note}
-								<span class="source-note">{h.source.note}</span>
-							{/if}
-						</footer>
-					{/if}
-				</article>
-				{/each}
-			</div>
-
-			{#if report.recommended_actions && report.recommended_actions.length > 0}
-				<section class="actions-section" aria-label="Preporučeni koraci">
-					<h3>Preporučeni sljedeći koraci i nadležne institucije</h3>
-					<div class="actions-grid">
-						{#each report.recommended_actions as act}
-							<div class="action-card">
-								<h4>{act.title}</h4>
-								<p>{act.description}</p>
-								<a href={act.url} target="_blank" rel="noopener noreferrer">
-									{act.institution} ↗
-								</a>
-							</div>
-						{/each}
+				{#if availableHazards.length > 0}
+					{#each availableHazards as h}
+						<HazardCard {h} />
+					{/each}
+				{:else}
+					<div class="no-active-hazards">
+						<p>
+							Za ovu točku nema zabilježenih specifičnih lokalnih
+							podataka o rizicima u primarnim slojevima.
+						</p>
 					</div>
-				</section>
-			{/if}
-
-			<div class="report-disclaimer" role="note">
-				<strong>Napomena o odgovornosti:</strong> {report.disclaimer}
+				{/if}
 			</div>
 		{/if}
 	</section>
 </div>
+
+{#if report}
+	{#if noDataHazards.length > 0}
+		<section class="bottom-section no-data-section">
+			<div class="section-title-wrap">
+				<h3>
+					Ostali slojevi bez podataka za ovu lokaciju ({noDataHazards.length})
+				</h3>
+				<p class="section-desc">
+					Ovi slojevi (npr. geohazardi izvan područja studije
+					Banovine) nisu pokriveni za odabranu točku:
+				</p>
+			</div>
+			<div class="bottom-cards-grid">
+				{#each noDataHazards as h}
+					<HazardCard {h} />
+				{/each}
+			</div>
+		</section>
+	{/if}
+
+	{#if report.recommended_actions && report.recommended_actions.length > 0}
+		<section class="actions-section" aria-label="Preporučeni koraci">
+			<h3>Preporučeni sljedeći koraci i nadležne institucije</h3>
+			<div class="actions-grid">
+				{#each report.recommended_actions as act}
+					<div class="action-card">
+						<h4>{act.title}</h4>
+						<p>{act.description}</p>
+						<a
+							href={act.url}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{act.institution} ↗
+						</a>
+					</div>
+				{/each}
+			</div>
+		</section>
+	{/if}
+
+	<div class="report-disclaimer" role="note">
+		<strong>Napomena o odgovornosti:</strong>
+		{report.disclaimer}
+	</div>
+{/if}
 
 <style>
 	.sr-only {
@@ -580,10 +579,10 @@
 		grid-template-columns: 1fr;
 		gap: 1.25rem;
 	}
-	@media (min-width: 900px) {
+	@media (min-width: 960px) {
 		.workspace-grid {
-			grid-template-columns: 5fr 7fr;
-			align-items: start;
+			grid-template-columns: minmax(0, 1fr) 420px;
+			align-items: stretch;
 		}
 	}
 	.map-column {
@@ -612,7 +611,8 @@
 	}
 	.map-frame {
 		width: 100%;
-		height: 440px;
+		height: 580px;
+		min-height: 480px;
 		border-radius: 0.5rem;
 		border: 1px solid var(--border);
 	}
@@ -780,7 +780,7 @@
 		font-size: 0.85rem;
 		color: var(--muted);
 	}
-.geocoder-msg {
+	.geocoder-msg {
 		margin: 0.5rem 0 0 0;
 		font-size: 0.88rem;
 		color: var(--muted);
@@ -852,5 +852,45 @@
 		background: var(--high-bg);
 		border-color: var(--high-border);
 		color: var(--high-text);
+	}
+
+	.bottom-section {
+		margin-top: 1.5rem;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 0.75rem;
+		padding: 1.25rem;
+	}
+	.no-data-section {
+		border-style: dashed;
+		background: #fafbfc;
+	}
+	.section-title-wrap h3 {
+		margin: 0 0 0.25rem 0;
+		font-size: 1.15rem;
+		color: var(--muted);
+	}
+	.section-desc {
+		margin: 0 0 1rem 0;
+		font-size: 0.88rem;
+		color: var(--muted);
+	}
+	.bottom-cards-grid {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 1rem;
+	}
+	@media (min-width: 768px) {
+		.bottom-cards-grid {
+			grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+		}
+	}
+	.no-active-hazards {
+		padding: 1rem;
+		background: #f8fafc;
+		border-radius: 0.5rem;
+		font-size: 0.9rem;
+		color: var(--muted);
+		border: 1px dashed var(--border);
 	}
 </style>
