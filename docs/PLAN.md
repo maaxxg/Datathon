@@ -23,9 +23,9 @@ Pretpostavka: radnim danima uz predavanja realno 3–5 sati po osobi. Ako netko 
 | Datum | Kontrolna točka | Stanje (3. 11. 2026.) |
 |---|---|---|
 | 30. 10. | Specifikacija odobrena | **ispunjeno** |
-| 31. 10. | Adresa → koordinate radi | **nije ispunjeno na `main`**; geokoder u PR-u #1 (otvoren, nije pregledan) |
-| 1. 11. | Vertikalni prototip (Petrinja kraj-na-kraj) | **nije ispunjeno na `main`**; kod u PR-ovima #1, #8, #9, #4/#10 |
+| 31. 10. | Adresa → koordinate radi | **ispunjeno 3. 11. (kasni 3 dana)**: PR #1 mergan; geokoder na stvarnom DGU indeksu (1.683.411 adresa), `/api/addresses`, uvicorn s `--no-access-log` (zadaci 004, 008, 009) |
+| 1. 11. | Vertikalni prototip (Petrinja kraj-na-kraj) | **nije ispunjeno na `main`**; na `main` su #6, #8, #1; ostatak u PR-ovima #9, #4/#10 |
 | 2. 11. | Svi MUST slojevi u izvještaju | **nije ispunjeno na `main`**; potres (#7, D17), EFAS (#2), podzemna voda (#3, D16) u PR-ovima |
-| 3. 11. | Deploy v1 (svi MUST) na VPS-u | **ugroženo**: prvo pregled i merge PR-ova redom #6 → #8 → #1 → #7 → #2 → #3 → #9 → #4, uz ispravke iz korektivnih zadataka |
+| 3. 11. | Deploy v1 (svi MUST) na VPS-u | **ugroženo**: merge PR-ova redom #6 ✅ → #8 ✅ → #1 ✅ → #7 → #2 → #3 → #9 → #4, uz ispravke iz korektivnih zadataka |
 
 Odluke D16 (pragovi podzemne vode) i D17 (ESHM20 za potres) korisnik je odobrio 3. 11.; reci u `DECISIONS.md` dolaze s PR-ovima #3 i #7.
