@@ -194,6 +194,8 @@ def build(zip_path: Path, out: Path) -> None:
     names = collect_names(zip_path)
     print(f"name features: {len(names)}", file=sys.stderr)
     out.parent.mkdir(parents=True, exist_ok=True)
+    final = out
+    out = out.with_name(out.name + ".part")  # build aside, rename only when complete
     out.unlink(missing_ok=True)
     db = sqlite3.connect(out)
     db.executescript("""
@@ -235,6 +237,8 @@ def build(zip_path: Path, out: Path) -> None:
     db.commit()
     db.execute("PRAGMA journal_mode = DELETE;")
     db.close()
+    out.replace(final)
+    out = final
     for key in sorted(stats):
         if key != "skipped":
             print(f"{key}: {stats[key]}")

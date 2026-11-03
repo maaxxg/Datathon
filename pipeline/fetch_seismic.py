@@ -62,7 +62,9 @@ def main() -> None:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
     data = fetch_croatia_grid()
-    args.out.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    part = args.out.with_name(args.out.name + ".part")  # atomic: never leave a truncated file
+    part.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    part.replace(args.out)
     print(f"ESHM20 PGA475: {data['count']} grid points in {time.perf_counter() - t0:.1f}s -> {args.out}")
 
 

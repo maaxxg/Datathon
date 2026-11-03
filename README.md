@@ -60,10 +60,10 @@ Koristi `backend/.venv/bin/python` ako postoji (inače `python3`, ili `$PYTHON`)
 | `fetch_geohazards.py` (MPGI, Banovina) | `data/geohazards/*.geojson` | ~186 MB (`landslide.geojson` ~182 MB); trajanje nije mjereno |
 | `fetch_seismic.py` (ESHM20) | `data/seismic/eshm20_pga475.json` | ~122 KB, ~4 s |
 | `fetch_efas.py` (EFAS) | `data/efas/rp{10,100,500}.tif` | ~22 MB |
-| preuzimanje DGU zipa (URL iz `layers.yaml`) + `build_address_index.py` | `data/raw/INSPIRE_Addresses_(AD).zip`, `data/addresses.sqlite` | zip ~86 MB, indeks ~170 MB; izgradnja indeksa izmjerena 3. 11. na ovom projektu oko 2,5 min (1 683 411 adresa) |
+| preuzimanje DGU zipa (URL iz `layers.yaml`) + `build_address_index.py` | `data/raw/INSPIRE_Addresses_(AD).zip`, `data/addresses.sqlite` | zip ~86 MB, indeks ~170 MB; izgradnja indeksa izmjerena 3. 11.: ~2,5 min (2:37; 1 683 411 adresa) |
 | `build_map_layers.py` | `data/map/` | preskače se dok skripta nije na `main` |
 
-Provjereno 3. 11.: ponovno pokretanje s već postojećim podacima preskače sve korake (manje od 1 s) i ispisuje sažetak OK/MISSING; izgradnja adresnog indeksa iz zip datoteke prošla je. Preuzimanje DGU zipa s mreže nije provjereno u ovoj skripti (korišten je već preuzeti zip). Pokretanje skripte unutar kontejnera (`docker compose run --rm --no-deps -v ./data:/data api bash /app/scripts/prepare_data.sh`) nije provjereno jer Docker nije bio instaliran; preporučeno je pokretanje na hostu.
+Provjereno 3. 11.: ponovno pokretanje s već postojećim podacima preskače sve korake (manje od 1 s) i ispisuje sažetak OK/MISSING; izgradnja adresnog indeksa iz zip datoteke prošla je. Preuzimanje DGU zipa s mreže nije provjereno u ovoj skripti (korišten je već preuzeti zip). Skriptu pokrenite na hostu (u kontejneru `api` je `data/` montiran samo za čitanje).
 
 ## 5. Docker Compose
 
@@ -77,7 +77,7 @@ scripts/wait_healthy.sh        # čeka da svi *_loaded budu true (najviše 120 s
 
 - Dva kontejnera: `api` (FastAPI, uvicorn `--no-access-log`, `data/` montiran samo za čitanje, nije izložen izvana) i `web` (Caddy + statički build, portovi 80/443).
 - `DOMAIN` prazan: Caddy koristi svoj interni CA za `localhost`; preglednik će upozoriti na certifikat, a `curl` treba `-k`. Javna domena u `DOMAIN` (DNS na ovaj stroj, otvoreni portovi 80 i 443): certifikat se dobiva automatski.
-- Privatnost: Caddy nema `log` direktivu (nema pristupnog loga), uvicorn radi s `--no-access-log`, odgovor ima `Referrer-Policy: no-referrer`.
+- Privatnost: Caddy nema `log` direktivu (nema pristupnog loga), uvicorn radi s `--no-access-log`, odgovor ima `Referrer-Policy: strict-origin-when-cross-origin` (OSM zahtijeva Referer; drugim stranicama šalje se samo domena ove stranice, nikad putanja ni koordinate, jer aplikacija koordinate ne stavlja u URL).
 - Ažuriranje: `git pull && docker compose up -d --build`; podaci u `data/` ostaju.
 
 **Nije provjereno (Docker nije bio instaliran 3. 11.):** `docker compose up`, izgradnja slika, healthcheck, certifikat i ponašanje preglednika. Provjereni su samo statički build frontenda, sintaksa skripti i API pokrenut izravno s uvicornom na pripremljenim podacima.

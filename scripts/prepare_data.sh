@@ -6,8 +6,7 @@
 #   scripts/prepare_data.sh [--data DIR] [--force]
 #   DIR defaults to $GEORIZIK_DATA, else <repo>/data.
 # Python: $PYTHON, else backend/.venv/bin/python if present, else python3.
-#
-# In Docker (not verified): docker compose run --rm --no-deps -v ./data:/data api bash /app/scripts/prepare_data.sh
+# Run it on the host (the compose api service mounts data/ read-only).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -76,9 +75,10 @@ try:
 except Exception as e:
     part.unlink(missing_ok=True)
     sys.exit(f"Preuzimanje nije uspjelo: {type(e).__name__}")
-if part.stat().st_size < 1_000_000:
+import zipfile
+if part.stat().st_size < 1_000_000 or not zipfile.is_zipfile(part):
     part.unlink()
-    sys.exit("Preuzeta datoteka je premala; ne koristim je.")
+    sys.exit("Preuzeta datoteka nije ispravan zip; ne koristim je.")
 part.replace(dest)
 PYEOF
 }

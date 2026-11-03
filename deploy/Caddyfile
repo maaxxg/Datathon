@@ -8,8 +8,9 @@
 	# Do not add one.
 
 	header {
-		# Map tile requests to tile.openstreetmap.org must not leak our page URLs.
-		Referrer-Policy no-referrer
+		# OSM's tile policy needs a Referer, so send only our origin (domain, never
+		# path or query) to other sites; the app never puts coordinates in the URL.
+		Referrer-Policy strict-origin-when-cross-origin
 		X-Content-Type-Options nosniff
 	}
 

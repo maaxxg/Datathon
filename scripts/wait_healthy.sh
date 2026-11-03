@@ -15,8 +15,9 @@ while [ $SECONDS -lt $DEADLINE ]; do
     result="$(printf '%s' "$body" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
-bad = sorted(k for k, v in d.items() if k.endswith("_loaded") and v is not True)
-print(",".join(bad))
+flags = {k: v for k, v in d.items() if k.endswith("_loaded")}
+bad = sorted(k for k, v in flags.items() if v is not True)
+print(",".join(bad) if flags else "nema_loaded_zastavica")
 ' 2>/dev/null || echo "?")"
     if [ -z "$result" ]; then
       echo "OK: svi slojevi učitani ($BASE_URL)"

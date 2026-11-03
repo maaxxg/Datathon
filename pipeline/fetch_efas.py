@@ -43,8 +43,10 @@ def clip_rp(rp: int, out_dir: Path) -> Path:
                 blockxsize=256,
                 blockysize=256,
             )
-            with rasterio.open(out_path, "w", **profile) as dst:
+            part = out_path.with_name(out_path.name + ".part")  # atomic: never leave a truncated file
+            with rasterio.open(part, "w", **profile) as dst:
                 dst.write(data, 1)
+            part.replace(out_path)
     return out_path
 
 
