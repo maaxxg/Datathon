@@ -138,7 +138,8 @@
 						type: 'raster',
 						tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
 						tileSize: 256,
-						attribution: '© OpenStreetMap suradnici (podloga karte)'
+						attribution:
+							'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
 					}
 				},
 				layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
@@ -155,7 +156,7 @@
 		map.on('click', (e) => {
 			const cLat = e.lngLat.lat;
 			const cLon = e.lngLat.lng;
-			fetchReport(cLat, cLon, `Odabrana točka na karti (${cLat.toFixed(4)}, ${cLon.toFixed(4)})`);
+			fetchReport(cLat, cLon, `Odabrana točka na karti (${fmt(cLat, 4)}; ${fmt(cLon, 4)})`);
 		});
 
 		map.on('load', () => {
@@ -212,7 +213,7 @@
 					<li>
 						<button type="button" onclick={() => selectAddress(item)}>
 							<strong>{item.label}</strong>
-							<span>({item.lat.toFixed(4)}, {item.lon.toFixed(4)})</span>
+							<span>({fmt(item.lat, 4)}; {fmt(item.lon, 4)})</span>
 						</button>
 					</li>
 				{/each}
@@ -263,7 +264,7 @@
 			<div>
 				<span class="eyebrow">Izvještaj za lokaciju</span>
 				<h2>{selectedLabel}</h2>
-				<p class="coords">WGS84 koordinate: <code>{lat.toFixed(5)}, {lon.toFixed(5)}</code></p>
+				<p class="coords">WGS84 koordinate: <code>{fmt(lat, 5)}; {fmt(lon, 5)}</code></p>
 			</div>
 		</div>
 
@@ -343,7 +344,7 @@
 							<p class="card-explanation">{h.explanation}</p>
 						{/if}
 
-						{#if h.detail && h.hazard === 'flood' && h.detail.velika !== undefined}
+						{#if h.detail && h.hazard === 'flood' && h.level !== 'nema_podataka' && h.detail.velika !== undefined}
 						<dl class="detail-grid">
 							<div>
 								<dt>Velika vjerojatnost:</dt>

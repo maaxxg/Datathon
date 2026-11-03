@@ -120,7 +120,8 @@
 						<strong>Visoko:</strong> velika vjerojatnost (bilo koja dubina) ili srednja vjerojatnost s dubinom &gt; 1,5 m; stalna vodena površina → visoko (posebna napomena).<br />
 						<strong>Srednje:</strong> srednja vjerojatnost s dubinom ≤ 1,5 m.<br />
 						<strong>Nisko:</strong> samo mala vjerojatnost.<br />
-						<strong>Nema prema karti:</strong> točka izvan svih zona unutar obuhvata karte.
+						<strong>Nema prema karti:</strong> točka izvan svih zona unutar obuhvata karte.<br />
+						<strong>Nema podataka:</strong> servis Hrvatskih voda nije odgovorio za bilo koji od scenarija.
 					</td>
 				</tr>
 				<tr>
