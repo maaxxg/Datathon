@@ -1,13 +1,14 @@
 <script>
 	import { onMount } from 'svelte';
 	import maplibregl from 'maplibre-gl';
-	import { HAZARD_META, LEVEL_META, FLOOD_DEPTH_TEXT, PRESET_LOCATIONS } from '$lib/labels.js';
+	import 'maplibre-gl/dist/maplibre-gl.css';
+	import { HAZARD_META, LEVEL_META, FLOOD_DEPTH_TEXT, PRESET_LOCATIONS, fmt } from '$lib/labels.js';
 
 	let searchQuery = $state('');
 	let suggestions = $state([]);
 	let geocoderAvailable = $state(true);
 	let showSuggestions = $state(false);
-	let selectedLabel = $state('Petrinja (središte)');
+	let selectedLabel = $state('Petrinja');
 	let lat = $state(45.4375);
 	let lon = $state(16.2739);
 
@@ -17,6 +18,10 @@
 
 	let showHvLayer = $state(false);
 	let hvScenario = $state('srednja');
+	let mapZoom = $state(12);
+	// Verified 3. 11. 2026.: HV WMS renders pixels only for tile zoom 12-14.
+	const HV_MIN_ZOOM = 12;
+	const HV_MAX_ZOOM = 15;
 
 	let mapContainer;
 	let map;
@@ -39,7 +44,12 @@
 			const res = await fetch(`/api/report?lat=${lat}&lon=${lon}`);
 			if (!res.ok) {
 				const body = await res.json().catch(() => ({}));
-				throw new Error(body.detail || `Greška poslužitelja (${res.status})`);
+				if (Array.isArray(body.detail)) throw new Error('Neispravna lokacija.');
+					throw new Error(
+						typeof body.detail === 'string' && body.detail
+							? body.detail
+							: `Greška poslužitelja (${res.status})`
+					);
 			}
 			report = await res.json();
 		} catch (err) {
@@ -70,6 +80,8 @@
 				showSuggestions = suggestions.length > 0;
 			} catch {
 				suggestions = [];
+				showSuggestions = false;
+				geocoderAvailable = false;
 			}
 		}, 200);
 	}
@@ -81,9 +93,9 @@
 	}
 
 	function selectPreset(preset) {
-		searchQuery = preset.address;
+		searchQuery = preset.name;
 		showSuggestions = false;
-		fetchReport(preset.lat, preset.lon, preset.address);
+		fetchReport(preset.lat, preset.lon, preset.name);
 	}
 
 	function updateWmsLayer() {
@@ -110,6 +122,8 @@
 			id: layerId,
 			type: 'raster',
 			source: sourceId,
+			minzoom: HV_MIN_ZOOM,
+			maxzoom: HV_MAX_ZOOM,
 			paint: { 'raster-opacity': 0.72 }
 		});
 	}
@@ -133,6 +147,8 @@
 			zoom: 12
 		});
 		map.addControl(new maplibregl.NavigationControl(), 'top-right');
+		map.on('zoom', () => (mapZoom = map.getZoom()));
+		mapZoom = map.getZoom();
 
 		marker = new maplibregl.Marker({ color: '#1d4ed8' }).setLngLat([lon, lat]).addTo(map);
 
@@ -164,9 +180,12 @@
 			<input
 				id="address-input"
 				type="search"
-				placeholder="Upišite ulicu, kućni broj i naselje (npr. Matije Gupca 12, Petrinja)..."
+				placeholder="Upišite ulicu, kućni broj i naselje..."
 				value={searchQuery}
 				oninput={onSearchInput}
+				onkeydown={(e) => {
+					if (e.key === 'Escape') showSuggestions = false;
+				}}
 				onfocus={() => (showSuggestions = suggestions.length > 0)}
 				autocomplete="off"
 			/>
@@ -175,8 +194,20 @@
 			</button>
 		</div>
 
+		{#if !geocoderAvailable}
+			<p class="geocoder-msg" role="status">
+				Pretraga adresa trenutačno nije dostupna. Odaberite lokaciju klikom na kartu.
+			</p>
+		{/if}
+
 		{#if showSuggestions && suggestions.length > 0}
-			<ul class="suggestions-list" role="listbox" aria-label="Predložene adrese">
+			<ul
+				class="suggestions-list"
+				aria-label="Predložene adrese"
+				onkeydown={(e) => {
+					if (e.key === 'Escape') showSuggestions = false;
+				}}
+			>
 				{#each suggestions as item}
 					<li>
 						<button type="button" onclick={() => selectAddress(item)}>
@@ -212,12 +243,15 @@
 			</label>
 			{#if showHvLayer}
 				<select bind:value={hvScenario} onchange={updateWmsLayer} aria-label="Scenarij poplave">
-					<option value="velika">Velika vjerojatnost (RP 25 god.)</option>
-					<option value="srednja">Srednja vjerojatnost (RP 100 god.)</option>
-					<option value="mala">Mala vjerojatnost (ekstremni scenarij)</option>
+					<option value="velika">Velika vjerojatnost</option>
+					<option value="srednja">Srednja vjerojatnost</option>
+					<option value="mala">Mala vjerojatnost</option>
 				</select>
 			{/if}
 		</div>
+		{#if showHvLayer && (mapZoom < HV_MIN_ZOOM || mapZoom >= HV_MAX_ZOOM)}
+			<p class="map-hint" role="status">Sloj poplava vidljiv je pri zumu 12–14.</p>
+		{/if}
 		<div class="map-frame" bind:this={mapContainer}></div>
 		<p class="map-hint">
 			Savjet: Kliknite bilo gdje na kartu unutar Republike Hrvatske za izračun izvještaja za tu točku.
@@ -256,10 +290,30 @@
 						<p>{report.summary}</p>
 					{/if}
 				</div>
+			{:else if report.all_no_data}
+				<div class="top-risk-banner tone-nodata">
+					<div class="top-risk-header">
+						<span class="badge tone-nodata"><span aria-hidden="true">—</span> NEMA PODATAKA ZA OVU LOKACIJU</span>
+					</div>
+					{#if report.summary}
+						<p>{report.summary}</p>
+					{/if}
+				</div>
+			{:else if report.hazards.some((x) => x.level === 'nema_podataka')}
+				<div class="top-risk-banner tone-none">
+					<div class="top-risk-header">
+						<span class="badge tone-none"><span aria-hidden="true">○</span> NEMA UTVRĐENE POVIŠENE OPASNOSTI</span>
+					</div>
+					<h3>Prema dostupnim kartama nije utvrđen povišeni rizik</h3>
+					<p class="banner-extra">Za neke opasnosti nema podataka (vidi kartice ispod).</p>
+					{#if report.summary}
+						<p>{report.summary}</p>
+					{/if}
+				</div>
 			{:else}
 				<div class="top-risk-banner tone-none">
 					<div class="top-risk-header">
-						<span class="badge tone-none">✓ NEMA UTVRĐENE POVIŠENE OPASNOSTI</span>
+						<span class="badge tone-none"><span aria-hidden="true">✓</span> NEMA UTVRĐENE POVIŠENE OPASNOSTI</span>
 					</div>
 					<h3>Prema dostupnim kartama nije utvrđen povišeni rizik</h3>
 					{#if report.summary}
@@ -289,41 +343,66 @@
 							<p class="card-explanation">{h.explanation}</p>
 						{/if}
 
-						{#if h.detail && Object.keys(h.detail).length > 0}
-							<dl class="detail-grid">
-								{#if h.hazard === 'flood' && h.detail.velika !== undefined}
-									<div>
-										<dt>Velika vjerojatnost (RP 25):</dt>
-										<dd>{FLOOD_DEPTH_TEXT[h.detail.velika] || h.detail.velika || 'nema podataka'}</dd>
-									</div>
-									<div>
-										<dt>Srednja vjerojatnost (RP 100):</dt>
-										<dd>{FLOOD_DEPTH_TEXT[h.detail.srednja] || h.detail.srednja || 'nema podataka'}</dd>
-									</div>
-									<div>
-										<dt>Mala vjerojatnost (ekstremno):</dt>
-										<dd>{FLOOD_DEPTH_TEXT[h.detail.mala] || h.detail.mala || 'nema podataka'}</dd>
-									</div>
-								{:else if h.hazard === 'seismic' && h.detail.ag_g !== undefined}
-									<div>
-										<dt>Vršno ubrzanje tla (ag, 475 god.):</dt>
-										<dd><strong>{h.detail.ag_g} g</strong> (usporedba: Zagreb ~0,25 g, Petrinja ~0,11 g, Osijek ~0,07 g)</dd>
-									</div>
-								{:else if h.detail.podloznost}
-									<div>
-										<dt>Razred podložnosti u studiji:</dt>
-										<dd><strong>{h.detail.podloznost}</strong></dd>
-									</div>
-								{:else if h.detail.dubina_do !== undefined}
-									<div>
-										<dt>Dubina do podzemne vode:</dt>
-										<dd><strong>{h.detail.dubina_do} m</strong> (udaljenost bušotine: {h.detail.udaljenost_m} m, datum: {h.detail.datum_mjerenja || '2021.'})</dd>
-									</div>
-								{/if}
-							</dl>
-						{/if}
+						{#if h.detail && h.hazard === 'flood' && h.detail.velika !== undefined}
+						<dl class="detail-grid">
+							<div>
+								<dt>Velika vjerojatnost:</dt>
+								<dd>{FLOOD_DEPTH_TEXT[h.detail.velika] || h.detail.velika || 'nema podatka'}</dd>
+							</div>
+							<div>
+								<dt>Srednja vjerojatnost:</dt>
+								<dd>{FLOOD_DEPTH_TEXT[h.detail.srednja] || h.detail.srednja || 'nema podatka'}</dd>
+							</div>
+							<div>
+								<dt>Mala vjerojatnost:</dt>
+								<dd>{FLOOD_DEPTH_TEXT[h.detail.mala] || h.detail.mala || 'nema podatka'}</dd>
+							</div>
+						</dl>
+					{:else if h.detail && h.hazard === 'flood' && h.detail.rp10 !== undefined}
+						<dl class="detail-grid">
+							{#each [['10', h.detail.rp10], ['100', h.detail.rp100], ['500', h.detail.rp500]] as [rp, val]}
+								<div>
+									<dt>Povratno razdoblje {rp} god.:</dt>
+									<dd>{val === null || val === undefined ? 'nema podatka' : `${fmt(val)} m`}</dd>
+								</div>
+							{/each}
+						</dl>
+					{:else if h.detail && h.hazard === 'seismic' && h.detail.ag_g !== undefined}
+						<dl class="detail-grid">
+							<div>
+								<dt>Vršno ubrzanje tla (ag, 475 god.):</dt>
+								<dd><strong>{fmt(h.detail.ag_g)} g</strong></dd>
+							</div>
+							{#if h.detail.udaljenost_km !== undefined && h.detail.udaljenost_km !== null}
+								<div>
+									<dt>Udaljenost do točke mreže:</dt>
+									<dd>{fmt(h.detail.udaljenost_km)} km</dd>
+								</div>
+							{/if}
+						</dl>
+					{:else if h.detail && h.detail.podloznost}
+						<dl class="detail-grid">
+							<div>
+								<dt>Razred podložnosti u studiji:</dt>
+								<dd><strong>{h.detail.podloznost}</strong></dd>
+							</div>
+						</dl>
+					{:else if h.detail && h.detail.dubina_do !== undefined}
+						<dl class="detail-grid">
+							<div>
+								<dt>Dubina do podzemne vode:</dt>
+								<dd><strong>{fmt(h.detail.dubina_do)} m</strong></dd>
+							</div>
+							{#if h.detail.udaljenost_m !== undefined && h.detail.udaljenost_m !== null}
+								<div>
+									<dt>Udaljenost bušotine:</dt>
+									<dd>{fmt(h.detail.udaljenost_m)} m</dd>
+								</div>
+							{/if}
+						</dl>
+					{/if}
 
-						{#if h.notes && h.notes.length > 0}
+					{#if h.notes && h.notes.length > 0}
 							<ul class="card-notes">
 								{#each h.notes as note}
 									<li>{note}</li>
@@ -332,17 +411,25 @@
 						{/if}
 
 						{#if h.source && h.source.title}
-							<footer class="card-source">
-								<span>
-									<strong>Izvor:</strong> {h.source.title} — {h.source.publisher}
-									({h.source.year || 'n/a'}, rezolucija: {h.source.resolution || 'n/a'})
-								</span>
-								{#if h.source.url && h.source.url !== 'TBD'}
-									<a href={h.source.url} target="_blank" rel="noopener noreferrer">Poveznica na izvor ↗</a>
+						<footer class="card-source">
+							<span>
+								<strong>Izvor:</strong>
+								{[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
+								{#if h.source.year || h.source.resolution}
+									({[h.source.year, h.source.resolution && `rezolucija: ${h.source.resolution}`]
+										.filter(Boolean)
+										.join(', ')})
 								{/if}
-							</footer>
-						{/if}
-					</article>
+							</span>
+							{#if h.source.url && h.source.url !== 'TBD'}
+								<a href={h.source.url} target="_blank" rel="noopener noreferrer">Poveznica na izvor ↗</a>
+							{/if}
+							{#if h.source.note}
+								<span class="source-note">{h.source.note}</span>
+							{/if}
+						</footer>
+					{/if}
+				</article>
 				{/each}
 			</div>
 
@@ -691,6 +778,18 @@
 		padding-left: 1.2rem;
 		font-size: 0.85rem;
 		color: var(--muted);
+	}
+.geocoder-msg {
+		margin: 0.5rem 0 0 0;
+		font-size: 0.88rem;
+		color: var(--muted);
+	}
+	.banner-extra {
+		font-weight: 600;
+		margin: 0 0 0.35rem 0 !important;
+	}
+	.source-note {
+		flex-basis: 100%;
 	}
 	.card-source {
 		margin-top: 0.75rem;

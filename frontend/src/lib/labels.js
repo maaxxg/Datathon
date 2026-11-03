@@ -90,11 +90,17 @@ export const FLOOD_DEPTH_TEXT = {
 };
 
 export const PRESET_LOCATIONS = [
-	{ name: 'Petrinja (Matije Gupca 12)', lat: 45.4410, lon: 16.2718, address: 'Ulica Matije Gupca 12, 44250 Petrinja' },
-	{ name: 'Petrinja — centar', lat: 45.4375, lon: 16.2739, address: 'Petrinja (središte)' },
-	{ name: 'Sisak (Rimska 19)', lat: 45.4896, lon: 16.3713, address: 'Rimska ulica 19, 44000 Sisak' },
-	{ name: 'Karlovac (uz Kupu)', lat: 45.4870, lon: 15.5480, address: 'Karlovac' },
-	{ name: 'Gunja', lat: 44.8810, lon: 18.8450, address: 'Gunja' },
-	{ name: 'Zagreb (uz Savu)', lat: 45.7930, lon: 15.9600, address: 'Zagreb — priobalje Save' },
-	{ name: 'Split', lat: 43.5081, lon: 16.4402, address: 'Split' }
+	{ name: 'Petrinja', lat: 45.4375, lon: 16.2739 },
+	{ name: 'Sisak', lat: 45.484, lon: 16.374 },
+	{ name: 'Karlovac', lat: 45.487, lon: 15.548 },
+	{ name: 'Gunja', lat: 44.881, lon: 18.845 },
+	{ name: 'Zagreb uz Savu', lat: 45.793, lon: 15.96 },
+	{ name: 'Split', lat: 43.5081, lon: 16.4402 }
 ];
+
+// Decimal comma for every number shown to the user.
+export function fmt(n, digits) {
+	if (n === null || n === undefined || Number.isNaN(Number(n))) return null;
+	const v = digits === undefined ? String(n) : Number(n).toFixed(digits);
+	return v.replace('.', ',');
+}

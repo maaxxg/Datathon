@@ -1,108 +1,23 @@
 <script>
 	import { onMount } from 'svelte';
 
-	const FALLBACK_LAYERS = {
-		flood_hv: {
-			title: 'Karte opasnosti od poplava 2019.',
-			publisher: 'Hrvatske vode',
-			licence: 'Bez ograničenja pristupa (WMS AccessConstraints NONE)',
-			url: 'https://servisi.voda.hr/wms',
-			info_url: 'https://www.voda.hr/hr/karte-opasnosti-od-poplava-karte-rizika-od-poplava-2019',
-			year: 2019,
-			resolution: 'Render WMS-a (GetMap), dubina vode u 5 razreda',
-			coverage: 'croatia'
-		},
-		flood_efas: {
-			title: 'EFAS river flood hazard maps v3.1.1',
-			publisher: 'Europska komisija, JRC (Copernicus EMS)',
-			licence: 'ODbL 1.0',
-			url: 'https://jeodpp.jrc.ec.europa.eu/ftp/public/JRC-OpenData/CEMS-EFAS/flood_hazard/',
-			info_url: 'https://doi.org/10.2905/1D128B6C-A4EE-4858-9E34-6210707F3C81',
-			year: 2024,
-			resolution: '90 m (GeoTIFF)',
-			coverage: 'croatia',
-			note: 'Koristi se samo gdje karta Hrvatskih voda nema podatka'
-		},
-		seismic: {
-			title: 'Europski model potresne opasnosti ESHM20 (PGA, 475 god.)',
-			publisher: 'EFEHR / ETH Zürich (Danciu et al.)',
-			licence: 'CC BY 4.0',
-			url: 'https://efehr-services.ethz.ch/hazard/api/v1',
-			info_url: 'https://doi.org/10.12686/a15',
-			year: 2021,
-			resolution: 'Mreža ~0,1° (~10 km), referentna stijena Vs30 = 760 m/s',
-			coverage: 'croatia'
-		},
-		landslide: {
-			title: 'Podložnost klizištima',
-			publisher: 'Ministarstvo prostornoga uređenja, graditeljstva i državne imovine (MPGI)',
-			licence: 'Otvorena dozvola RH',
-			url: 'https://data.gov.hr/ckan/hr/dataset/geohazardi',
-			year: 2021,
-			resolution: 'Poligoni studije (preliminarna identifikacija)',
-			coverage: 'banovina'
-		},
-		liquefaction: {
-			title: 'Podložnost likvefakciji',
-			publisher: 'Ministarstvo prostornoga uređenja, graditeljstva i državne imovine (MPGI)',
-			licence: 'Otvorena dozvola RH',
-			url: 'https://data.gov.hr/ckan/hr/dataset/geohazardi',
-			year: 2021,
-			resolution: 'Poligoni studije (preliminarna identifikacija)',
-			coverage: 'banovina'
-		},
-		sinkhole: {
-			title: 'Podložnost vrtačama',
-			publisher: 'Ministarstvo prostornoga uređenja, graditeljstva i državne imovine (MPGI)',
-			licence: 'Otvorena dozvola RH',
-			url: 'https://data.gov.hr/ckan/hr/dataset/geohazardi',
-			year: 2021,
-			resolution: 'Poligoni studije (preliminarna identifikacija)',
-			coverage: 'banovina'
-		},
-		unfavourable: {
-			title: 'Područja nepovoljna za gradnju',
-			publisher: 'Ministarstvo prostornoga uređenja, graditeljstva i državne imovine (MPGI)',
-			licence: 'Otvorena dozvola RH',
-			url: 'https://data.gov.hr/ckan/hr/dataset/geohazardi',
-			year: 2021,
-			resolution: 'Poligoni studije',
-			coverage: 'banovina'
-		},
-		groundwater: {
-			title: 'Dubina podzemne vode',
-			publisher: 'Ministarstvo prostornoga uređenja, graditeljstva i državne imovine (MPGI)',
-			licence: 'Otvorena dozvola RH',
-			url: 'https://data.gov.hr/ckan/hr/dataset/geohazardi',
-			year: 2021,
-			resolution: 'Točkasta mjerenja (611 točaka, atribut dubina_do u m, radijus 1 km)',
-			coverage: 'banovina'
-		},
-		addresses: {
-			title: 'Adrese INSPIRE',
-			publisher: 'Državna geodetska uprava (DGU)',
-			licence: 'Otvorena dozvola RH',
-			url: 'https://data.gov.hr/ckan/hr/dataset/adrese-inspire',
-			info_url: 'https://geoportal.dgu.hr/services/atom/INSPIRE_Addresses_(AD).zip',
-			year: 2026,
-			resolution: 'Točke kućnih brojeva (~1,68 mil. adresa u RH)',
-			coverage: 'croatia'
-		}
-	};
+	let layers = $state({});
+	let loadFailed = $state(false);
 
-	let layers = $state(FALLBACK_LAYERS);
+	const COVERAGE = {
+		croatia: { label: 'Cijela Hrvatska', cls: 'cov-hr' },
+		banovina: { label: 'Banovina (studija MPGI)', cls: 'cov-ban' }
+	};
 
 	onMount(async () => {
 		try {
 			const res = await fetch('/api/sources');
-			if (res.ok) {
-				const data = await res.json();
-				if (data && data.layers) {
-					layers = { ...FALLBACK_LAYERS, ...data.layers };
-				}
-			}
+			if (!res.ok) throw new Error('bad status');
+			const data = await res.json();
+			if (!data || !data.layers) throw new Error('bad payload');
+			layers = data.layers;
 		} catch {
-			// Keep fallback catalogue
+			loadFailed = true;
 		}
 	});
 </script>
@@ -122,15 +37,18 @@
 </section>
 
 <section class="section-block" aria-labelledby="sources-heading">
-	<h2 id="sources-heading">1. Katalog skupova podataka (`layers.yaml`)</h2>
+	<h2 id="sources-heading">1. Katalog skupova podataka (layers.yaml)</h2>
+	{#if loadFailed}
+		<div class="load-error" role="alert">Popis izvora trenutno nije dostupan. Pokušajte ponovno.</div>
+	{/if}
 	<div class="sources-grid">
 		{#each Object.entries(layers) as [key, item]}
 			<article class="source-card">
 				<div class="source-header">
 					<h3>{item.title}</h3>
-					<span class="coverage-chip {item.coverage === 'croatia' ? 'cov-hr' : 'cov-ban'}">
-						{item.coverage === 'croatia' ? 'Cijela Hrvatska' : 'Banovina (SMŽ)'}
-					</span>
+					{#if COVERAGE[item.coverage]}
+						<span class="coverage-chip {COVERAGE[item.coverage].cls}">{COVERAGE[item.coverage].label}</span>
+					{/if}
 				</div>
 				<dl class="meta-list">
 					<div>
@@ -199,10 +117,10 @@
 					<td><strong>Poplave (nacionalno)</strong></td>
 					<td>Hrvatske vode (karte opasnosti 2019.)</td>
 					<td>
-						<strong>Visoko:</strong> stalna vodena površina, ili velika vjerojatnost (RP 25 god., bilo koja dubina), ili srednja vjerojatnost (RP 100 god.) s dubinom &gt; 1,5 m.<br />
-						<strong>Srednje:</strong> srednja vjerojatnost (RP 100 god.) s dubinom ≤ 1,5 m.<br />
-						<strong>Nisko:</strong> samo mala vjerojatnost (ekstremni scenarij).<br />
-						<strong>Nema prema karti:</strong> točka izvan poplavnih zona za sva tri scenarija.
+						<strong>Visoko:</strong> velika vjerojatnost (bilo koja dubina) ili srednja vjerojatnost s dubinom &gt; 1,5 m; stalna vodena površina → visoko (posebna napomena).<br />
+						<strong>Srednje:</strong> srednja vjerojatnost s dubinom ≤ 1,5 m.<br />
+						<strong>Nisko:</strong> samo mala vjerojatnost.<br />
+						<strong>Nema prema karti:</strong> točka izvan svih zona unutar obuhvata karte.
 					</td>
 				</tr>
 				<tr>
@@ -210,10 +128,11 @@
 					<td>Copernicus EFAS v3.1.1 (90 m)</td>
 					<td>
 						Koristi se isključivo kada servis Hrvatskih voda nema podatka za točku.<br />
-						<strong>Visoko:</strong> dubina &gt; 0 m za RP 10 god. ·
-						<strong>Srednje:</strong> dubina &gt; 0 m za RP 100 god. ·
-						<strong>Nisko:</strong> dubina &gt; 0 m za RP 500 god. ·
-						<strong>Nema prema karti:</strong> 0 m za sve scenarije.
+						<strong>Visoko:</strong> dubina &gt; 0 m za povratno razdoblje 10 god. ·
+						<strong>Srednje:</strong> dubina &gt; 0 m za povratno razdoblje 100 god. ·
+						<strong>Nisko:</strong> dubina &gt; 0 m za povratno razdoblje 500 god. ·
+						<strong>Nema prema karti:</strong> stvarna vrijednost 0 m za sve scenarije.<br />
+						Nodata ili izvan rastera → <strong>nema podataka</strong> (D20). Europski model, 90 m, okvirno.
 					</td>
 				</tr>
 				<tr>
@@ -223,14 +142,15 @@
 						Razredi prema normi <strong>HRN EN 1998-1 (Eurokod 8, točka 3.2.1)</strong> za referentno vršno ubrzanje tla na stijeni (<em>a</em><sub>g</sub>):<br />
 						<strong>Vrlo niska seizmičnost:</strong> <em>a</em><sub>g</sub> ≤ 0,04 g ·
 						<strong>Niska seizmičnost:</strong> 0,04 g &lt; <em>a</em><sub>g</sub> ≤ 0,08 g ·
-						<strong>Iznad praga niske seizmičnosti:</strong> <em>a</em><sub>g</sub> &gt; 0,08 g (uz prikaz točne vrijednosti u <em>g</em>).
+						<strong>Iznad praga niske seizmičnosti:</strong> <em>a</em><sub>g</sub> &gt; 0,08 g (uz prikaz točne vrijednosti u <em>g</em>).<br />
+						Okvirno; mreža ~10 km; stijena Vs30 = 760 m/s; izvor nije s data.gov.hr.
 					</td>
 				</tr>
 				<tr>
 					<td><strong>Klizišta, likvefakcija, vrtače</strong></td>
 					<td>MPGI Geohazardi (Banovina, 2021.)</td>
 					<td>
-						Preuzima se izvorni razred podložnosti iz poligona studije: <strong>niska</strong> → nisko, <strong>srednja</strong> → srednje, <strong>visoka</strong> → visoko. Izvan obuhvata studije → <strong>nema podataka</strong>.
+						Preuzima se izvorni razred podložnosti iz poligona studije: <strong>niska</strong> → nisko, <strong>srednja</strong> → srednje, <strong>visoka</strong> → visoko. Točka izvan poligona studije → <strong>nema podataka</strong>; izvan obuhvata (Banovina) → <strong>nema podataka</strong>.
 					</td>
 				</tr>
 				<tr>
@@ -244,7 +164,8 @@
 					<td><strong>Dubina podzemne vode</strong></td>
 					<td>MPGI Geohazardi (Banovina, 2021.)</td>
 					<td>
-						Najbliža točka mjerenja (`dubina_do`) u radijusu do 1 km: <strong>&lt; 1,5 m</strong> → visoko, <strong>1,5 – 3,0 m</strong> → srednje, <strong>&gt; 3,0 m</strong> → nisko; bez mjerenja unutar 1 km → <strong>nema podataka</strong>.
+						Najbliža točka mjerenja (dubina_do) u radijusu do 1 km: <strong>&lt; 1,5 m</strong> → visoko, <strong>1,5 – 3,0 m</strong> → srednje, <strong>&gt; 3,0 m</strong> → nisko; bez mjerenja unutar 1 km → <strong>nema podataka</strong>.<br />
+						Jedno mjerenje (veljača–ožujak 2021.); prikazuju se datum i udaljenost bušotine.
 					</td>
 				</tr>
 			</tbody>
@@ -259,7 +180,7 @@
 			<strong>Informativni karakter:</strong> Podaci prikazani u aplikaciji služe isključivo za informiranje građana i ne predstavljaju službeno uvjerenje, lokacijsku informaciju niti geotehničko ili građevinsko stručno mišljenje. Za sve zahvate u prostoru i kupoprodajne odluke obratite se nadležnim javnopravnim tijelima i ovlaštenim inženjerima.
 		</li>
 		<li>
-			<strong>Privatnost korisnika:</strong> Aplikacija ne sprema unesene kućne adrese niti koristi analitičke servise trećih strana. Upiti prema servisu Hrvatskih voda zaokružuju se na fiksnu mrežu pločica od 0,01° (~1,1 km), čime se u privremenoj memoriji nikada ne pohranjuje točna lokacija korisnika.
+			<strong>Privatnost korisnika:</strong> Aplikacija ne sprema unesene kućne adrese niti koristi analitičke servise trećih strana. Upiti prema servisu Hrvatskih voda zaokružuju se na fiksnu mrežu pločica od 0,02° (~2,2 km), čime se u privremenoj memoriji nikada ne pohranjuje točna lokacija korisnika. Pozadinska karta učitava se s poslužitelja OpenStreetMap, a uključivi sloj poplava izravno sa servisa Hrvatskih voda; ti poslužitelji vide koje se pločice karte učitavaju.
 		</li>
 		<li>
 			<strong>Otvoreni kod i licence:</strong> Izvorni kod aplikacije objavljen je pod <strong>MIT licencom</strong>. Izvedena mreža s EFAS vrijednostima poplava objavljuje se pod licencom <strong>Open Database License (ODbL 1.0)</strong>, a podaci modela ESHM20 pod licencom <strong>CC BY 4.0</strong> (Danciu et al., 2021, DOI: 10.12686/a15).
@@ -321,6 +242,14 @@
 		padding: 0.2rem 0.55rem;
 		border-radius: 999px;
 		white-space: nowrap;
+	}
+	.load-error {
+		padding: 1rem 1.25rem;
+		margin-bottom: 1rem;
+		background: var(--high-bg);
+		border: 1px solid var(--high-border);
+		color: var(--high-text);
+		border-radius: 0.65rem;
 	}
 	.cov-hr {
 		background: #dbeafe;
