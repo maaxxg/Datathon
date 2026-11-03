@@ -14,8 +14,8 @@ from .geocoder import AddressGeocoder
 from .geohazards import SUSCEPTIBILITY_LAYERS, Geohazards, in_banovina
 from .hv_flood import HVFloodClient
 from .risk_rules import (
-    HazardResult, combine_flood, flood_efas_level, flood_hv_level, most_significant,
-    seismic_level, susceptibility_level, unfavourable_level,
+    HazardResult, combine_flood, flood_efas_level, flood_hv_level, groundwater_level,
+    most_significant, seismic_level, susceptibility_level, unfavourable_level,
 )
 from .seismic import SeismicReader
 
@@ -94,7 +94,9 @@ async def report(lat: float = Query(..., ge=-90, le=90), lon: float = Query(...,
     for layer in SUSCEPTIBILITY_LAYERS:
         value = geo.susceptibility(layer, lat, lon) if covered else None
         results.append(susceptibility_level(layer, value, covered))
-    results.append(unfavourable_level(geo.inside("unfavourable", lat, lon), covered))
+    results.append(unfavourable_level(geo.inside("unfavourable", lat, lon) if covered else False, covered))
+    results.append(groundwater_level(
+        geo.nearest_groundwater(lat, lon) if covered else None, covered, "groundwater" in geo.layers))
 
     seismic: SeismicReader = state["seismic"]
     hit = seismic.pga_g(lat, lon)
