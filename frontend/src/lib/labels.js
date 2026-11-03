@@ -104,3 +104,39 @@ export function fmt(n, digits) {
 	const v = digits === undefined ? String(n) : Number(n).toFixed(digits);
 	return v.replace('.', ',');
 }
+
+// Map legend texts (Croatian). Colours here match the map paint; swatches are decorative, text carries the meaning.
+export const MAP_LEGEND = {
+	hv: {
+		rows: [
+			{ colour: '#BEE8FF', text: '< 0,5 m' },
+			{ colour: '#73DFFF', text: '0,5–1,5 m' },
+			{ colour: '#73B2FF', text: '1,5–2,5 m' },
+			{ colour: '#7A8EF5', text: '> 2,5 m' },
+			{ colour: '#004DA8', text: 'Stalne vodene površine' }
+		],
+		note: 'Dubina vode po scenariju vjerojatnosti. Sloj je vidljiv samo pri zumu 12–14.'
+	},
+	geo: {
+		susceptibility: [
+			{ colour: '#facc15', text: 'Niska podložnost' },
+			{ colour: '#f97316', text: 'Srednja podložnost' },
+			{ colour: '#b91c1c', text: 'Visoka podložnost' }
+		],
+		unfavourable: { colour: '#4c1d95', text: 'Nepovoljno za gradnju' },
+		coverage: { colour: '#0f766e', text: 'Obuhvat studije (samo Banovina)' },
+		coverageNote: 'Obuhvat geohazarda: samo Banovina (Sisačko-moslavačka)',
+		note: 'Pojednostavljeni prikaz: rubovi većinom unutar ~20 m (klizišta ~40 m, ponegdje i više); manji dijelovi izostavljeni (klizišta do ~2 ha, ostali slojevi do ~0,4 ha). Razred za odabranu točku daje izvještaj iz izvornih podataka.'
+	},
+	efas: {
+		rows: [
+			{ colour: '#D8B4FE', text: '< 0,5 m' },
+			{ colour: '#A855F7', text: '0,5–1,5 m' },
+			{ colour: '#7E22CE', text: '1,5–2,5 m' },
+			{ colour: '#3B0764', text: '> 2,5 m' }
+		],
+		note: 'Europski model, 90 m, prikaz ~180 m (najveća dubina u bloku); u izvještaju se koristi samo gdje karta Hrvatskih voda nema podatka. Prikazuje samo poplave uz veće rijeke. Prozirno znači da model ne prikazuje poplavu ili da za to područje nema podatka. Izvedeno iz EFAS v3.1.1, ODbL 1.0.'
+	}
+};
+
+export const MAP_UNAVAILABLE = 'Sloj trenutačno nije dostupan.';

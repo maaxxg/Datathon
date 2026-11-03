@@ -61,7 +61,7 @@ Koristi `backend/.venv/bin/python` ako postoji (inače `python3`, ili `$PYTHON`)
 | `fetch_seismic.py` (ESHM20) | `data/seismic/eshm20_pga475.json` | ~122 KB, ~4 s |
 | `fetch_efas.py` (EFAS) | `data/efas/rp{10,100,500}.tif` | ~22 MB |
 | preuzimanje DGU zipa (URL iz `layers.yaml`) + `build_address_index.py` | `data/raw/INSPIRE_Addresses_(AD).zip`, `data/addresses.sqlite` | zip ~86 MB, indeks ~170 MB; izgradnja indeksa izmjerena 3. 11.: ~2,5 min (2:37; 1 683 411 adresa) |
-| `build_map_layers.py` | `data/map/` | preskače se dok skripta nije na `main` |
+| `build_map_layers.py` (poslije geohazarda i EFAS-a) | `data/map/` | ~4,5 MB, ~25 s (izmjereno 3. 11.) |
 
 Provjereno 3. 11.: ponovno pokretanje s već postojećim podacima preskače sve korake (manje od 1 s) i ispisuje sažetak OK/MISSING; izgradnja adresnog indeksa iz zip datoteke prošla je. Preuzimanje DGU zipa s mreže nije provjereno u ovoj skripti (korišten je već preuzeti zip). Skriptu pokrenite na hostu (u kontejneru `api` je `data/` montiran samo za čitanje).
 
