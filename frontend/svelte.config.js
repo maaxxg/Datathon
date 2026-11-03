@@ -1,9 +1,10 @@
-import adapter from '@sveltejs/adapter-auto';
+import adapter from '@sveltejs/adapter-static';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	kit: {
-		adapter: adapter()
+		// SPA mode: unknown paths (e.g. a reload of /izvori) fall back to index.html.
+		adapter: adapter({ fallback: 'index.html' })
 	}
 };
 

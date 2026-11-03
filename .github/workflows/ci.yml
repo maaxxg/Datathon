@@ -36,3 +36,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config -q
+      - run: DOMAIN=example.org docker compose config -q
+      - run: docker compose build
+      - run: docker compose run --rm --no-deps api python -c "import app.main"

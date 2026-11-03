@@ -1,0 +1,17 @@
+# Build context is the repository root; keep data and local tooling out of images.
+.git
+.github
+data
+misc
+.claude
+CLAUDE.md
+.env
+.env.*
+!.env.example
+**/.venv
+**/node_modules
+**/.svelte-kit
+**/build
+**/__pycache__
+**/.pytest_cache
+docs

@@ -76,7 +76,9 @@ def main() -> None:
             t0 = time.perf_counter()
             fc = drop_placeholder_points(fetch_layer(client, type_name))
             path = out / f"{key}.geojson"
-            path.write_text(json.dumps(fc, ensure_ascii=False), encoding="utf-8")
+            part = path.with_name(path.name + ".part")  # atomic: never leave a truncated file
+            part.write_text(json.dumps(fc, ensure_ascii=False), encoding="utf-8")
+            part.replace(path)
             attrs = sorted({k for f in fc["features"] for k in (f.get("properties") or {})})
             print(f"{key}: {len(fc['features'])} features, attrs={attrs}, "
                   f"{time.perf_counter() - t0:.1f}s -> {path}")
