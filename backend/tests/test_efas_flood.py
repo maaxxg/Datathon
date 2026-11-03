@@ -36,6 +36,7 @@ def test_efas_reader_and_fallback(tmp_path):
 
     # Outside raster bounds -> None per return period
     assert reader.depths(43.0, 16.5) == {10: None, 100: None, 500: None}
+    assert flood_efas_level(reader.depths(43.0, 16.5)).level is Level.NO_DATA
 
     # Fallback when HV returns NO_DATA
     hv_missing = flood_hv_level({"velika": None, "srednja": None, "mala": None})
@@ -49,3 +50,10 @@ def test_efas_missing_directory(tmp_path):
     reader = EFASFloodReader(tmp_path / "empty")
     assert not reader.available()
     assert reader.depths(45.45, 16.55) is None
+
+
+def test_efas_partial_directory_not_available(tmp_path):
+    _write_raster(tmp_path / "rp10.tif", 0.5)
+    reader = EFASFloodReader(tmp_path)
+    assert not reader.available()
+    reader.close()

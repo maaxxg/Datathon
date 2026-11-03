@@ -11,8 +11,9 @@ cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python -m pytest            # deterministički testovi
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --no-access-log
 # http://localhost:8000/api/report?lat=45.4375&lon=16.2739
+# --no-access-log is required: adrese i točne koordinate su u URL-u i ne smiju završiti u logovima
 ```
 
 ## Priprema podataka
