@@ -20,7 +20,7 @@
 	let showUnf = $state(false);
 	let showEfas = $state(false);
 	let efasRp = $state('100');
-	let unavailable = $state({ geo: false, unf: false, efas: false });
+	let unavailable = $state({ geo: false, efas: false });
 
 	let efasBounds = null;
 	const geoCache = {};
@@ -95,20 +95,35 @@
 	}
 
 	// ---- MPGI geohazards (simplified GeoJSON served by our API, EPSG:4326 lon,lat)
+	const GEO_LAYERS = ['geo-susc-fill', 'geo-susc-line', 'geo-unf-fill', 'geo-unf-line', 'geo-coverage-line'];
+	const GEO_SOURCES = ['geo-susc', 'geo-unf', 'geo-coverage'];
+	let geoToken = 0;
+	let efasToken = 0;
+
+	// Group failure: remove every layer/source and clear the legend so map and legend never disagree.
+	function failGeo() {
+		removeAll(GEO_LAYERS, GEO_SOURCES);
+		showGeo = false;
+		showUnf = false;
+		unavailable.geo = true;
+	}
+
 	async function updateGeo() {
 		if (!map) return;
+		const token = ++geoToken;
 		unavailable.geo = false;
 		if (!showGeo) {
-			removeAll(['geo-susc-fill', 'geo-susc-line', 'geo-coverage-line'], ['geo-susc', 'geo-coverage']);
-			if (showUnf) {
-				showUnf = false;
-				updateUnf();
-			}
+			removeAll(GEO_LAYERS, GEO_SOURCES);
+			showUnf = false;
 			return;
 		}
 		try {
-			const [data, cov] = await Promise.all([getJson(`geohazard_${geoLayer}.geojson`), getJson('banovina_coverage.geojson')]);
-			if (!showGeo) return;
+			const [data, cov, unf] = await Promise.all([
+				getJson(`geohazard_${geoLayer}.geojson`),
+				getJson('banovina_coverage.geojson'),
+				showUnf ? getJson('geohazard_unfavourable.geojson') : null
+			]);
+			if (token !== geoToken) return; // stale response
 			const attribution = attr(geoLayer) ? `© ${attr(geoLayer)}` : '© MPGI';
 			if (map.getSource('geo-susc')) {
 				map.getSource('geo-susc').setData(data);
@@ -127,32 +142,36 @@
 					paint: { 'line-color': '#0f766e', 'line-width': 2, 'line-dasharray': [3, 2] }
 				});
 			}
+			removeAll(['geo-unf-fill', 'geo-unf-line'], ['geo-unf']);
+			if (unf) {
+				map.addSource('geo-unf', { type: 'geojson', data: unf, attribution: attr('unfavourable') ? `© ${attr('unfavourable')}` : '© MPGI' });
+				addLayer({ id: 'geo-unf-fill', type: 'fill', source: 'geo-unf', paint: { 'fill-color': '#4c1d95', 'fill-opacity': 0.35 } });
+				addLayer({ id: 'geo-unf-line', type: 'line', source: 'geo-unf', paint: { 'line-color': '#4c1d95', 'line-width': 2 } });
+			}
 		} catch {
-			showGeo = false;
-			unavailable.geo = true;
+			if (token === geoToken) failGeo();
 		}
 	}
 
-	async function updateUnf() {
+	// ---- EFAS PNG overlay (corners TL, TR, BR, BL as lon,lat; rows resampled to Web Mercator by the pipeline)
+	function failEfas() {
+		removeAll(['efas-layer'], ['efas-img']);
+		showEfas = false;
+		unavailable.efas = true;
+	}
+
+	$effect(() => {
 		if (!map) return;
-		unavailable.unf = false;
-		removeAll(['geo-unf-fill', 'geo-unf-line'], ['geo-unf']);
-		if (!showUnf) return;
-		try {
-			const data = await getJson('geohazard_unfavourable.geojson');
-			if (!showUnf) return;
-			map.addSource('geo-unf', { type: 'geojson', data, attribution: attr('unfavourable') ? `© ${attr('unfavourable')}` : '© MPGI' });
-			addLayer({ id: 'geo-unf-fill', type: 'fill', source: 'geo-unf', paint: { 'fill-color': '#4c1d95', 'fill-opacity': 0.35 } });
-			addLayer({ id: 'geo-unf-line', type: 'line', source: 'geo-unf', paint: { 'line-color': '#4c1d95', 'line-width': 2 } });
-		} catch {
-			showUnf = false;
-			unavailable.unf = true;
-		}
-	}
+		const onError = (e) => {
+			if (e.sourceId === 'efas-img') failEfas();
+		};
+		map.on('error', onError);
+		return () => map.off('error', onError);
+	});
 
-	// ---- EFAS PNG overlay (corners TL, TR, BR, BL as lon,lat)
 	async function updateEfas() {
 		if (!map) return;
+		const token = ++efasToken;
 		unavailable.efas = false;
 		if (!showEfas) {
 			removeAll(['efas-layer'], ['efas-img']);
@@ -163,21 +182,16 @@
 			efasBounds = efasBounds || (await getJson('efas_bounds.json'));
 			const head = await fetch(url, { method: 'HEAD' });
 			if (!head.ok) throw new Error('unavailable');
-			if (!showEfas) return;
+			if (token !== efasToken) return; // stale response
 			const src = map.getSource('efas-img');
 			if (src) {
 				src.updateImage({ url, coordinates: efasBounds });
 			} else {
-				map.addSource('efas-img', {
-					type: 'image',
-					url,
-					coordinates: efasBounds
-				});
+				map.addSource('efas-img', { type: 'image', url, coordinates: efasBounds });
 				addLayer({ id: 'efas-layer', type: 'raster', source: 'efas-img', paint: { 'raster-opacity': 0.7, 'raster-resampling': 'nearest' } });
 			}
 		} catch {
-			showEfas = false;
-			unavailable.efas = true;
+			if (token === efasToken) failEfas();
 		}
 	}
 </script>
@@ -234,10 +248,10 @@
 						<option value="sinkhole">Vrtače</option>
 					</select>
 				</label>
-				<label class="toggle"><input type="checkbox" bind:checked={showUnf} onchange={updateUnf} /> Nepovoljno za gradnju</label>
+				<label class="toggle"><input type="checkbox" bind:checked={showUnf} onchange={updateGeo} /> Nepovoljno za gradnju</label>
 			{/if}
 		</div>
-		{#if unavailable.geo || unavailable.unf}
+		{#if unavailable.geo}
 			<p class="hint" role="status">{MAP_UNAVAILABLE}</p>
 		{/if}
 		{#if showGeo}
@@ -336,6 +350,19 @@
 		font-size: 0.82rem;
 		color: var(--muted);
 		overflow-wrap: anywhere;
+	}
+	/* WCAG 2.2 AA 2.5.8: tap targets >= 24 x 24 px */
+	input[type='checkbox'] {
+		width: 1.5rem;
+		height: 1.5rem;
+		margin: 0;
+	}
+	select {
+		min-height: 2rem;
+	}
+	.toggle,
+	.sel {
+		min-height: 2rem;
 	}
 	input:focus-visible,
 	select:focus-visible {

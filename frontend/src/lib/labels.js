@@ -126,7 +126,7 @@ export const MAP_LEGEND = {
 		unfavourable: { colour: '#4c1d95', text: 'Nepovoljno za gradnju' },
 		coverage: { colour: '#0f766e', text: 'Obuhvat studije (samo Banovina)' },
 		coverageNote: 'Obuhvat geohazarda: samo Banovina (Sisačko-moslavačka)',
-		note: 'Pojednostavljeni prikaz (klizišta ~40 m, ostali slojevi ~20 m). Razred za odabranu točku daje izvještaj iz izvornih podataka.'
+		note: 'Pojednostavljeni prikaz: rubovi većinom unutar ~20 m (klizišta ~50 m, ponegdje i više); manji dijelovi (ispod 1 ha) izostavljeni. Razred za odabranu točku daje izvještaj iz izvornih podataka.'
 	},
 	efas: {
 		rows: [
@@ -135,7 +135,7 @@ export const MAP_LEGEND = {
 			{ colour: '#7E22CE', text: '1,5–2,5 m' },
 			{ colour: '#3B0764', text: '> 2,5 m' }
 		],
-		note: 'Europski model, 90 m, prikaz ~180 m (najveća dubina u bloku); u izvještaju se koristi samo gdje karta Hrvatskih voda nema podatka. Prikazuje samo poplave uz veće rijeke. Izvedeno iz EFAS v3.1.1, ODbL 1.0.'
+		note: 'Europski model, 90 m, prikaz ~180 m (najveća dubina u bloku); u izvještaju se koristi samo gdje karta Hrvatskih voda nema podatka. Prikazuje samo poplave uz veće rijeke. Prozirno znači da model ne prikazuje poplavu ili da za to područje nema podatka. Izvedeno iz EFAS v3.1.1, ODbL 1.0.'
 	}
 };
 

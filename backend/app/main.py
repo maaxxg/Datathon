@@ -131,6 +131,6 @@ async def report(lat: float = Query(..., ge=-90, le=90), lon: float = Query(...,
 
 
 # Display-only map layers built by pipeline/build_map_layers.py; whole-file fetches, no coordinates.
-# Registered last so it cannot shadow the /api/* routes above. Mounted only if the directory exists.
-if (DATA_DIR / "map").is_dir():
-    app.mount("/api/map-data", StaticFiles(directory=DATA_DIR / "map"), name="map-data")
+# Registered last so it cannot shadow the /api/* routes above. Always mounted (check_dir=False), so files built
+# after startup are served and a missing file is a plain 404.
+app.mount("/api/map-data", StaticFiles(directory=DATA_DIR / "map", check_dir=False), name="map-data")

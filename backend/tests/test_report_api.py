@@ -36,7 +36,7 @@ def test_not_all_no_data_when_hv_answers(monkeypatch, tmp_path):
     assert "Nema podataka za:" in body["summary"]
 
 
-def test_health_map_layers_flag_and_static(monkeypatch, tmp_path):
+def test_health_map_layers_flag(monkeypatch, tmp_path):
     with _client(monkeypatch, tmp_path, {}) as c:
         assert c.get("/api/health").json()["map_layers_loaded"] is False
     (tmp_path / "map").mkdir()
@@ -44,3 +44,18 @@ def test_health_map_layers_flag_and_static(monkeypatch, tmp_path):
         (tmp_path / "map" / f).write_bytes(b"x")
     with _client(monkeypatch, tmp_path, {}) as c:
         assert c.get("/api/health").json()["map_layers_loaded"] is True
+
+
+def test_map_data_serves_file_and_404(tmp_path):
+    from fastapi import FastAPI
+    from fastapi.staticfiles import StaticFiles
+
+    (tmp_path / "map").mkdir()
+    (tmp_path / "map" / "efas_bounds.json").write_text("[[1,2]]")
+    # same mount call as main.py, on a tmp dir (main.DATA_DIR is fixed at import time)
+    app = FastAPI()
+    app.mount("/api/map-data", StaticFiles(directory=tmp_path / "map", check_dir=False))
+    c = TestClient(app)
+    ok = c.get("/api/map-data/efas_bounds.json")
+    assert ok.status_code == 200 and ok.json() == [[1, 2]]
+    assert c.get("/api/map-data/missing.png").status_code == 404
