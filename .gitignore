@@ -16,4 +16,5 @@ data/raw/
 data/*.sqlite
 data/efas/*.tif
 data/geohazards/*.geojson
+data/seismic/*.json
 data/grid/
