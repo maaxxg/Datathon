@@ -28,7 +28,7 @@ Web aplikacija u kojoj korisnik unese adresu i u nekoliko sekundi dobije razumlj
 1. Pretraga adrese (vlastiti indeks iz DGU Adresa INSPIRE) s automatskim dovršavanjem; odabir lokacije klikom na kartu.
 2. Izvještaj za točku:
    - **Poplave:** HV karte opasnosti 2019. za 3 scenarija (razred dubine); gdje HV nema podatka, EFAS (dubina za povratna razdoblja).
-   - **Potres:** ESHM20 (nakon potvrde pristupa; vidi rizike).
+   - **Potres:** ESHM20 (D17; okvirno, mreža ~10 km, stijena Vs30 = 760 m/s, izvor nije s data.gov.hr).
    - **Banovina:** podložnost klizištima, likvefakciji i vrtačama; dubina podzemne vode; "nepovoljno za gradnju".
 3. Razina po opasnosti prema javnoj tablici pravila (odjeljak 6); "najznačajniji rizik" na vrhu; razlika "nema rizika prema karti" / "nema podataka".
 4. Uz svaku stavku izvor: naziv skupa, izdavač, godina, rezolucija, poveznica. Zasebna stranica "Izvori podataka".
