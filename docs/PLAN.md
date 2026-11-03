@@ -17,3 +17,15 @@ Uloge: **M** = Max (voditelj, AI, arhitektura), **B** = backend i geopodaci, **C
 | **Pon 9. 11.** | **rezerva**; slanje e-pošte **do 18:00** | rezerva | rezerva | rezerva | Rješenje predano, potvrda primitka |
 
 Pretpostavka: radnim danima uz predavanja realno 3–5 sati po osobi. Ako netko ispadne, prvo se reže SHOULD 12 (LLM objašnjenje), zatim 11 (usporedba), pa 10 (Istraži).
+
+## Status kontrolnih točaka
+
+| Datum | Kontrolna točka | Stanje (3. 11. 2026.) |
+|---|---|---|
+| 30. 10. | Specifikacija odobrena | **ispunjeno** |
+| 31. 10. | Adresa → koordinate radi | **nije ispunjeno na `main`**; geokoder u PR-u #1 (otvoren, nije pregledan) |
+| 1. 11. | Vertikalni prototip (Petrinja kraj-na-kraj) | **nije ispunjeno na `main`**; kod u PR-ovima #1, #8, #9, #4/#10 |
+| 2. 11. | Svi MUST slojevi u izvještaju | **nije ispunjeno na `main`**; potres (#7, D17), EFAS (#2), podzemna voda (#3, D16) u PR-ovima |
+| 3. 11. | Deploy v1 (svi MUST) na VPS-u | **ugroženo**: prvo pregled i merge PR-ova redom #6 → #8 → #1 → #7 → #2 → #3 → #9 → #4, uz ispravke iz korektivnih zadataka |
+
+Odluke D16 (pragovi podzemne vode) i D17 (ESHM20 za potres) korisnik je odobrio 3. 11.; reci u `DECISIONS.md` dolaze s PR-ovima #3 i #7.
