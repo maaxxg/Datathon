@@ -8,7 +8,7 @@ layers:
     publisher: Hrvatske vode
     licence: bez ograničenja pristupa (WMS AccessConstraints NONE); skup nije objavljen na data.gov.hr
     url: https://servisi.voda.hr/wms
-    info_url: https://www.voda.hr/hr/karte-opasnosti-od-poplava-karte-rizika-od-poplava-2019
+    info_url: https://www.voda.hr/hr/novost/karte-opasnosti-od-poplava-i-karte-rizika-od-poplava
     year: 2019
     resolution: render WMS-a (GetMap), dubina u razredima
     coverage: croatia
