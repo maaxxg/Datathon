@@ -46,6 +46,21 @@ def test_parse_address_concatenates_number_and_extension():
     assert row[1] == "7"
 
 
+def test_parse_address_second_extension():
+    # Real DGU cases (alternativeIdentifier): "Ulica hrvatskih branitelja 117/1 Bartolovci", "Kaniska ulica 105A/1 Gospic"
+    def num(ds):
+        return pipe.parse_address(fromstring(_address_xml(ds)), NAMES)[1]
+    assert num([("117", "addressNumber"), ("1", "addressNumber2ndExtension")]) == "117/1"
+    assert num([("2", "addressNumber"), ("1", "addressNumber2ndExtension")]) == "2/1"  # not "21"
+    assert num([("105", "addressNumber"), ("A", "addressNumberExtension"), ("1", "addressNumber2ndExtension")]) == "105A/1"
+    # type decides, not file order
+    assert num([("1", "addressNumber2ndExtension"), ("12", "addressNumber"), ("A", "addressNumberExtension")]) == "12A/1"
+    assert num([("12", "addressNumber"), ("/1", "addressNumber2ndExtension")]) == "12/1"  # no double slash
+    stats = pipe.Counter()
+    pipe.parse_address(fromstring(_address_xml([("105", "addressNumber"), ("1", "addressNumber2ndExtension")])), NAMES, stats)
+    assert stats["designator:addressNumber2ndExtension"] == 1
+
+
 def test_parse_address_axis_order_known_point():
     # Known address Matije Gupca 12, Petrinja: LAEA pos is (northing, easting).
     from pyproj import Transformer

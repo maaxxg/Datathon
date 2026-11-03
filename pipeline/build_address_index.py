@@ -77,18 +77,30 @@ def collect_names(zip_path: Path) -> dict[str, tuple[str, str]]:
 CROATIA_BBOX = (13.4, 42.3, 19.5, 46.6)  # lon_min, lat_min, lon_max, lat_max
 
 
-def parse_address(el, names: dict[str, tuple[str, str]]):
+def parse_address(el, names: dict[str, tuple[str, str]], stats: Counter | None = None):
     """Parse one <ad:Address> element into a row tuple, or None when it has no position.
 
-    The house number is every LocatorDesignator text in file order, concatenated:
-    addressNumber "45" + addressNumberExtension "A" -> "45A", "12" + "/1" -> "12/1".
+    The house number is assembled by LocatorDesignator type, not by file order:
+    addressNumber + addressNumberExtension + "/" + addressNumber2ndExtension
+    (117 + 1 -> "117/1", 105 + A + 1 -> "105A/1", 12 + A -> "12A"). Per-type counts go to stats.
     """
     pos = next((p.text for p in el.iter(f"{GML}pos") if p.text), None)
     if not pos:
         return None
-    number = "".join(
-        d.text.strip() for d in el.iter() if local(d.tag) == "designator" and d.text and d.text.strip() and not len(d)
-    )
+    parts: dict[str, str] = {}
+    for ld in el.iter():
+        if local(ld.tag) != "LocatorDesignator":
+            continue
+        value = next((d.text.strip() for d in ld if local(d.tag) == "designator" and d.text and d.text.strip()), "")
+        kind = next((t.get(XLINK, "").rsplit("/", 1)[-1] for t in ld if local(t.tag) == "type"), "")
+        if stats is not None:
+            stats[f"designator:{kind or 'unknown'}"] += 1
+        if value and kind and kind not in parts:
+            parts[kind] = value
+    second = parts.get("addressNumber2ndExtension", "")
+    if second and not second.startswith("/"):
+        second = "/" + second
+    number = parts.get("addressNumber", "") + parts.get("addressNumberExtension", "") + second
     street = settlement = municipality = postcode = ""
     for comp in el.iter():
         if local(comp.tag) == "component" and comp.get(XLINK):
@@ -124,13 +136,15 @@ def iter_addresses(zip_path: Path, names: dict[str, tuple[str, str]], stats: Cou
                 for _, el in iterparse(fh, events=("end",)):
                     if local(el.tag) != "Address":
                         continue
-                    row = parse_address(el, names)
+                    row = parse_address(el, names, stats)
                     el.clear()
                     if row is None:
                         continue
                     if not in_croatia(row[5], row[6]):
                         stats["skipped"] += 1
                         continue
+                    if "/" in row[1]:
+                        stats["number_with_slash"] += 1
                     yield row
 
 
@@ -207,6 +221,9 @@ def build(zip_path: Path, out: Path) -> None:
     db.commit()
     db.execute("PRAGMA journal_mode = DELETE;")
     db.close()
+    for key in sorted(stats):
+        if key != "skipped":
+            print(f"{key}: {stats[key]}")
     print(f"done: {n} addresses indexed, {stats['skipped']} skipped (outside Croatia bbox) -> {out}")
 
 
