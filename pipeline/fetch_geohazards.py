@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -56,6 +57,10 @@ def drop_placeholder_points(fc: dict) -> dict:
         lon, lat = g["coordinates"][:2]
         return -180 <= lon <= 180 and -90 < lat < 90
     fc["features"] = [f for f in fc["features"] if ok(f)]
+    if fc.get("features") and any("datum_mjerenja" in (f.get("properties") or {}) for f in fc["features"]):
+        # groundwater: wells without a parseable measurement date count as "no measurement"
+        fc["features"] = [f for f in fc["features"]
+                          if re.search(r"\d{1,2}\.\d{1,2}\.\d{4}", str((f.get("properties") or {}).get("datum_mjerenja") or ""))]
     return fc
 
 

@@ -45,9 +45,22 @@ def test_banovina_bbox():
 
 def test_placeholder_points_dropped(tmp_path):
     pt = lambda lon, lat, d: {"type": "Feature", "geometry": {"type": "Point", "coordinates": [lon, lat]},
-                              "properties": {"dubina_do": d}}
+                              "properties": {"dubina_do": d, "datum_mjerenja": "4.02.2021."}}
     fc = {"type": "FeatureCollection", "features": [pt(16.2739, 45.4375, 2.0), pt(16.5, -90, 0)]}
     (tmp_path / "groundwater.geojson").write_text(json.dumps(fc), encoding="utf-8")
     geo = Geohazards(tmp_path)
     assert len(geo.layers["groundwater"].geoms) == 1
     assert geo.nearest_groundwater(45.4375, 16.2739)["dubina_do"] == 2.0
+
+
+def test_well_without_date_is_not_used(tmp_path):
+    def pt(lon, lat, d, date):
+        return {"type": "Feature", "geometry": {"type": "Point", "coordinates": [lon, lat]},
+                "properties": {"dubina_do": d, "datum_mjerenja": date}}
+    fc = {"type": "FeatureCollection", "features": [pt(16.2739, 45.4375, 0, ""), pt(16.2740, 45.4376, 4.4, None)]}
+    (tmp_path / "groundwater.geojson").write_text(json.dumps(fc), encoding="utf-8")
+    geo = Geohazards(tmp_path)
+    assert geo.nearest_groundwater(45.4375, 16.2739) is None
+    fc["features"].append(pt(16.2745, 45.4380, 2.0, "4.02.2021."))
+    (tmp_path / "groundwater.geojson").write_text(json.dumps(fc), encoding="utf-8")
+    assert Geohazards(tmp_path).nearest_groundwater(45.4375, 16.2739)["dubina_do"] == 2.0

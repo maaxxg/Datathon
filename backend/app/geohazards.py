@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import math
 from pathlib import Path
 
@@ -30,6 +31,14 @@ def valid_point_feature(f: dict) -> bool:
         return True
     lon, lat = g["coordinates"][:2]
     return -180 <= lon <= 180 and -90 < lat < 90
+
+
+_DATE_RE = re.compile(r"\d{1,2}\.\d{1,2}\.\d{4}")
+
+
+def has_measurement_date(f: dict) -> bool:
+    """Groundwater wells without a parseable datum_mjerenja are treated as 'no measurement'."""
+    return bool(_DATE_RE.search(str((f.get("properties") or {}).get("datum_mjerenja") or "")))
 
 
 class Layer:
@@ -67,7 +76,9 @@ class Geohazards:
         self.layers: dict[str, Layer] = {}
         for path in sorted(directory.glob("*.geojson")):
             fc = json.loads(path.read_text(encoding="utf-8"))
-            self.layers[path.stem] = Layer([f for f in fc.get("features", []) if valid_point_feature(f)])
+            self.layers[path.stem] = Layer([f for f in fc.get("features", [])
+                                       if valid_point_feature(f)
+                                       and (path.stem != "groundwater" or has_measurement_date(f))])
 
     def available(self) -> bool:
         return bool(self.layers)
