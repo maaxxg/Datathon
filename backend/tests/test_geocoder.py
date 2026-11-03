@@ -120,10 +120,19 @@ def geo(tmp_path):
 
 
 def test_fts_query_sanitises_and_adds_prefix():
-    assert fts_query("Radićeva 5, Petrinja!") == '"Radićeva"* "5"* "Petrinja"*'
+    assert fts_query("Radićeva 5, Petrinja!") == '"Radićeva"* "5" "Petrinja"*'
     assert fts_query("   ") == ""
     assert fts_query("Đakovo") == '"Dakovo"*'
     assert fts_query("podjela odjel") == '"podjela"* "odjel"*'
+
+
+def test_fts_query_minimum_query_rule():
+    assert fts_query("ul") == ""
+    assert fts_query("1") == ""
+    assert fts_query("12/1") == ""
+    assert fts_query("ul 12") == ""
+    assert fts_query("ulica 1") == '"ulica"* "1"'
+    assert fts_query("12/1 Petrinja") == '"12" "1" "Petrinja"*'
 
 
 def test_number_token():
@@ -149,11 +158,33 @@ def test_suffix_search_and_ranking(geo):
     assert geo.search("bartolovci 45a")[0]["number"] == "45A"
     assert geo.search("gupca 12/1 petrinja")[0]["number"] == "12/1"
     numbers = [h["number"] for h in geo.search("bartolovci 45")]
-    assert numbers[0] == "45"
-    assert numbers.index("45A") < numbers.index("450")
-    assert numbers.index("45B") < numbers.index("450")
+    assert numbers[:3] == ["45", "45A", "45B"]
     labels = [h["label"] for h in geo.search("bartolovci")]
     assert len(labels) == len(set(labels))
+
+
+def test_number_token_is_exact_not_prefix(geo):
+    numbers = [h["number"] for h in geo.search("bartolovci 45")]
+    assert "450" not in numbers
+    assert set(numbers) == {"45", "45A", "45B"}
+    assert [h["number"] for h in geo.search("bartolovci 450")] == ["450"]
+
+
+def test_minimum_query_rule_in_geocoder(geo):
+    assert geo.search("ul") == []
+    assert geo.search("1") == []
+    assert geo.search("12") == []
+    assert geo.search("ul 12") == []
+    assert len(geo.search("petrinja")) > 0
+
+
+def test_candidate_set_is_bounded(tmp_path, monkeypatch):
+    rows = [("Ulica Duga", str(i), "Grad", "Grad", "10000", 45.0, 16.0) for i in range(1, 60)]
+    _seed_db(tmp_path / "a.sqlite", rows)
+    g = AddressGeocoder(tmp_path / "a.sqlite")
+    monkeypatch.setattr("app.geocoder.CANDIDATES", 7)
+    assert len(g.search("duga", limit=50)) == 7
+    g.close()
 
 
 def test_dj_folding(geo):
@@ -187,6 +218,11 @@ def test_api_injection_strings_return_200(client, q):
     r = client.get("/api/addresses", params={"q": q + q})
     assert r.status_code == 200
     assert r.json()["available"] is True
+
+
+def test_api_minimum_query_returns_empty_available(client):
+    r = client.get("/api/addresses", params={"q": "ul 12"})
+    assert r.status_code == 200 and r.json() == {"available": True, "results": []}
 
 
 def test_api_validation(client):

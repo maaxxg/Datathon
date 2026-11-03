@@ -13,6 +13,7 @@ DGU's INSPIRE AD zip contains four GML files:
 from __future__ import annotations
 
 import argparse
+import re
 import sqlite3
 import sys
 import zipfile
@@ -148,9 +149,21 @@ def iter_addresses(zip_path: Path, names: dict[str, tuple[str, str]], stats: Cou
                     yield row
 
 
+def number_tokens(number: str) -> str:
+    """Base numbers of a house number, so exact number tokens match suffixed numbers:
+    "45A" -> "45", "105A/1" -> "105 1" (the tokenizer already yields "105a" and "1")."""
+    bases = []
+    for part in number.split("/"):
+        digits = re.match(r"\d+", part)
+        if digits and digits.group(0) != part:
+            bases.append(digits.group(0))
+    return " ".join(bases)
+
+
 def search_text(street: str, number: str, settlement: str, municipality: str, postcode: str) -> str:
-    """Text indexed by FTS5. Words with Croatian D-stroke get both a 'd' and a 'dj' form
-    (Djakovo -> 'dakovo djakovo'), because unicode61 remove_diacritics does not fold it."""
+    """Text indexed by FTS5, lower-cased tokens are split by unicode61.
+    - Words with Croatian D-stroke get both a 'd' and a 'dj' form (unicode61 does not fold it).
+    - The house number also yields its base number(s), because the query matches number tokens exactly."""
     label = " ".join(p for p in (
         street, number, settlement, municipality if municipality != settlement else "", postcode,
     ) if p)
@@ -160,7 +173,8 @@ def search_text(street: str, number: str, settlement: str, municipality: str, po
         if "đ" in low:
             extra.append(low.replace("đ", "d"))
             extra.append(low.replace("đ", "dj"))
-    return " ".join([label, *extra])
+    extra.append(number_tokens(number))
+    return " ".join(p for p in [label, *extra] if p)
 
 
 def inspect(zip_path: Path, limit: int = 300_000) -> None:

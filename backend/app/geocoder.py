@@ -15,12 +15,21 @@ def fold_query(raw: str) -> str:
     return raw.replace("đ", "d").replace("Đ", "D")
 
 
+MIN_WORD_LEN = 3
+CANDIDATES = 300  # FTS candidates considered per query; number tiers and tie-break run on these only
+
+
 def fts_query(raw: str) -> str:
-    """Turn user input into a safe FTS5 prefix query: every token is a quoted bound string with a trailing *."""
-    tokens = TOKEN_RE.findall(fold_query(raw).strip())
-    if not tokens:
+    """Safe FTS5 query from user input, or "" when the query is too broad.
+
+    Every token is a quoted bound string. Tokens starting with a digit (house number, postcode) are
+    matched exactly (the index holds base numbers, so "45" matches 45 and 45A but not 450); words are
+    prefix-matched for typeahead. At least one word of MIN_WORD_LEN characters is required.
+    """
+    tokens = TOKEN_RE.findall(fold_query(raw).strip())[:8]
+    if not any(not t[0].isdigit() and len(t) >= MIN_WORD_LEN for t in tokens):
         return ""
-    return " ".join(f'"{t}"*' for t in tokens[:8])
+    return " ".join(f'"{t}"' if t[0].isdigit() else f'"{t}"*' for t in tokens)
 
 
 def _number_token(raw: str) -> str:
@@ -63,9 +72,9 @@ class AddressGeocoder:
         cur = self._conn.execute(
             """
             SELECT a.id, a.street, a.number, a.settlement, a.municipality, a.postcode, a.lat, a.lon
-            FROM address_fts f
-            JOIN address a ON a.id = f.rowid
-            WHERE address_fts MATCH ?
+            FROM (SELECT rowid AS rid, bm25(address_fts) AS score
+                  FROM address_fts WHERE address_fts MATCH ? LIMIT ?) f
+            JOIN address a ON a.id = f.rid
             ORDER BY CASE WHEN ? = '' THEN 3
                           WHEN lower(a.number) = ? THEN 0
                           -- "45" -> "45A", "45/1" before "450" (a suffix is not another digit)
@@ -73,10 +82,10 @@ class AddressGeocoder:
                                AND substr(a.number, length(?) + 1, 1) NOT GLOB '[0-9]' THEN 1
                           WHEN lower(a.number) LIKE ? || '%' THEN 2
                           ELSE 3 END,
-                     bm25(address_fts), a.id
+                     f.score, a.id
             LIMIT ?
             """,
-            (match, num_tok, num_tok, num_tok, num_tok, num_tok, max(1, min(limit, 50))),
+            (match, CANDIDATES, num_tok, num_tok, num_tok, num_tok, num_tok, max(1, min(limit, 50))),
         )
         results = []
         for r in cur.fetchall():
