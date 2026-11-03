@@ -111,3 +111,30 @@ def test_most_significant_none_when_nothing_found():
         susceptibility_level("landslide", None, False),
     ]
     assert most_significant(results) is None
+
+
+def test_groundwater_note_date_and_distance():
+    r = groundwater_level({"dubina_do": 0.8, "datum_mjerenja": "4.02.2021.", "udaljenost_m": 85}, True)
+    assert r.level is Level.HIGH
+    assert "4. 2. 2021." in r.notes[0] and "85 m" in r.notes[0]
+    r = groundwater_level({"dubina_do": 2.0, "datum_mjerenja": "25.2.2021.", "udaljenost_m": 10}, True)
+    assert "25. 2. 2021." in r.notes[0]
+
+
+def test_groundwater_negative_depth_note():
+    r = groundwater_level({"dubina_do": -0.28, "datum_mjerenja": "18.02.2021", "udaljenost_m": 40}, True)
+    assert r.level is Level.HIGH
+    assert any("iznad razine terena" in n for n in r.notes)
+    assert "18. 2. 2021." in r.notes[0]
+
+
+def test_groundwater_date_fallback():
+    for raw in (None, "", "veljača", "2021-02-04"):
+        r = groundwater_level({"dubina_do": 2.0, "datum_mjerenja": raw, "udaljenost_m": 5}, True)
+        assert "veljače 2021." in r.notes[0]
+
+
+def test_groundwater_layer_not_loaded():
+    r = groundwater_level(None, True, layer_loaded=False)
+    assert r.level is Level.NO_DATA
+    assert any("nije učitan" in n for n in r.notes)

@@ -4,6 +4,7 @@ Every function maps raw source values to a level. No weighting, no AI.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, replace
 from enum import Enum
 
@@ -147,11 +148,26 @@ def unfavourable_level(inside: bool, in_coverage: bool) -> HazardResult:
     return HazardResult("unfavourable", Level.HIGH if inside else Level.NONE, "unfavourable")
 
 
-def groundwater_level(hit: dict | None, in_coverage: bool) -> HazardResult:
+_DATE_RE = re.compile(r"(\d{1,2})\.(\d{1,2})\.(\d{4})")
+
+
+def _format_measurement_date(raw: str | None) -> str:
+    """Normalise inconsistent strings ('4.02.2021.') to '4. 2. 2021.'; fallback 'veljače 2021.'."""
+    m = _DATE_RE.search(raw or "")
+    if not m:
+        return "veljače 2021."
+    d, mo, y = m.groups()
+    return f"{int(d)}. {int(mo)}. {y}."
+
+
+def groundwater_level(hit: dict | None, in_coverage: bool, layer_loaded: bool = True) -> HazardResult:
     """hit: {'dubina_do': float, 'datum_mjerenja': str | None, 'udaljenost_m': int} from nearest well <= 1 km."""
     if not in_coverage:
         return HazardResult("groundwater", Level.NO_DATA, "groundwater",
                             notes=["Izvan obuhvata studije (Banovina)."])
+    if not layer_loaded:
+        return HazardResult("groundwater", Level.NO_DATA, "groundwater",
+                            notes=["Sloj podzemne vode nije učitan."])
     if hit is None or hit.get("dubina_do") is None:
         return HazardResult("groundwater", Level.NO_DATA, "groundwater",
                             notes=["Nema točke mjerenja podzemne vode unutar 1 km."])
@@ -162,10 +178,14 @@ def groundwater_level(hit: dict | None, in_coverage: bool) -> HazardResult:
         level = Level.MEDIUM
     else:
         level = Level.LOW
-    return HazardResult(
-        "groundwater", level, "groundwater", dict(hit),
-        ["Točkasto mjerenje u blizini lokacije (najbliža bušotina/zdenac unutar 1 km)."],
-    )
+    notes = [
+        f"Jedno mjerenje od {_format_measurement_date(hit.get('datum_mjerenja'))} "
+        f"(bušotina udaljena {hit.get('udaljenost_m')} m). "
+        "Razina podzemne vode mijenja se tijekom godine."
+    ]
+    if depth < 0:
+        notes.append("Mjerenje pokazuje vodu iznad razine terena.")
+    return HazardResult("groundwater", level, "groundwater", dict(hit), notes)
 
 
 # --- summary ----------------------------------------------------------------

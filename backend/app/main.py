@@ -95,7 +95,8 @@ async def report(lat: float = Query(..., ge=-90, le=90), lon: float = Query(...,
         value = geo.susceptibility(layer, lat, lon) if covered else None
         results.append(susceptibility_level(layer, value, covered))
     results.append(unfavourable_level(geo.inside("unfavourable", lat, lon) if covered else False, covered))
-    results.append(groundwater_level(geo.nearest_groundwater(lat, lon) if covered else None, covered))
+    results.append(groundwater_level(
+        geo.nearest_groundwater(lat, lon) if covered else None, covered, "groundwater" in geo.layers))
 
     seismic: SeismicReader = state["seismic"]
     hit = seismic.pga_g(lat, lon)
