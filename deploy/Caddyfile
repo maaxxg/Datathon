@@ -1,11 +1,19 @@
+{
+	# PRIVACY: proxy error logs (http.log.error) include the full request URI
+	# (lat/lon, address query) when the upstream fails. Drop them.
+	log default {
+		exclude http.log.error
+	}
+}
+
 # DOMAIN unset  -> https://localhost with Caddy's internal CA (browser warning).
 # DOMAIN=<name> -> public HTTPS with an automatic certificate.
 {$DOMAIN:localhost} {
 	encode gzip zstd
 
-	# PRIVACY: there is deliberately NO `log` directive in this file. Without it Caddy
+	# PRIVACY: there is deliberately NO site-level `log` directive: without it Caddy
 	# writes no access log, and request URIs contain lat/lon and address queries.
-	# Do not add one.
+	# Do not add one. Error logs are dropped by the global block above.
 
 	header {
 		# OSM's tile policy needs a Referer, so send only our origin (domain, never

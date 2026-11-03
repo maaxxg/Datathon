@@ -4,6 +4,9 @@ FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 GEORIZIK_DATA=/data
 WORKDIR /app
 
+# rasterio needs libexpat, which python:3.12-slim lacks.
+RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 && rm -rf /var/lib/apt/lists/*
+
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install -r requirements.txt
 

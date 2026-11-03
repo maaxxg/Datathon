@@ -77,10 +77,12 @@ scripts/wait_healthy.sh        # čeka da svi *_loaded budu true (najviše 120 s
 
 - Dva kontejnera: `api` (FastAPI, uvicorn `--no-access-log`, `data/` montiran samo za čitanje, nije izložen izvana) i `web` (Caddy + statički build, portovi 80/443).
 - `DOMAIN` prazan: Caddy koristi svoj interni CA za `localhost`; preglednik će upozoriti na certifikat, a `curl` treba `-k`. Javna domena u `DOMAIN` (DNS na ovaj stroj, otvoreni portovi 80 i 443): certifikat se dobiva automatski.
-- Privatnost: Caddy nema `log` direktivu (nema pristupnog loga), uvicorn radi s `--no-access-log`, odgovor ima `Referrer-Policy: strict-origin-when-cross-origin` (OSM zahtijeva Referer; drugim stranicama šalje se samo domena ove stranice, nikad putanja ni koordinate, jer aplikacija koordinate ne stavlja u URL).
+- Privatnost: Caddy nema `log` direktivu (nema pristupnog loga), a globalni `log default { exclude http.log.error }` odbacuje i zapise grešaka proxyja (sadrže puni URI; provjereno: s zaustavljenim API-jem odgovori 502 ne ostavljaju URI ni koordinate u logovima), uvicorn radi s `--no-access-log`, odgovor ima `Referrer-Policy: strict-origin-when-cross-origin` (OSM zahtijeva Referer; drugim stranicama šalje se samo domena ove stranice, nikad putanja ni koordinate, jer aplikacija koordinate ne stavlja u URL).
 - Ažuriranje: `git pull && docker compose up -d --build`; podaci u `data/` ostaju.
 
-**Nije provjereno (Docker nije bio instaliran 3. 11.):** `docker compose up`, izgradnja slika, healthcheck, certifikat i ponašanje preglednika. Provjereni su samo statički build frontenda, sintaksa skripti i API pokrenut izravno s uvicornom na pripremljenim podacima.
+**Provjereno 3. 11. (Docker Desktop 29.9.2, `DOMAIN` prazan):** obje slike se grade; `api` je healthy; `scripts/wait_healthy.sh` ispisuje "OK: svi slojevi učitani"; `/api/health` ima sva četiri `*_loaded` true; `/api/addresses` za "Ilica 1 Zagreb" vraća Ilica 1, 10000 Zagreb; `/api/report` za Petrinju (45,4375; 16,2739) vraća poplave nisko, likvefakcija visoko, potres iznad praga niske seizmičnosti, podzemna voda srednje, klizišta i vrtače nema podataka; `/`, `/izvori` i nepoznata putanja vraćaju 200 text/html (SPA fallback); zaglavlja `nosniff` i `Referrer-Policy` prisutna; logovi ne sadrže `lat=`, `q=` ni koordinate.
+
+**Nije provjereno:** korisničko sučelje u pregledniku preko https-a (upozorenje o internom CA), učitavanje OSM pločica s novim `Referrer-Policy`, stvarno preuzimanje DGU zipa, javna domena i Let's Encrypt certifikat.
 
 ## 6. Izvori podataka i licence
 
