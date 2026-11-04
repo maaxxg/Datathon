@@ -116,6 +116,9 @@
 		map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
 		marker = new maplibregl.Marker({ color: '#1d4ed8' }).setLngLat([lon, lat]).addTo(map);
+		const markerEl = marker.getElement();
+		markerEl.setAttribute('role', 'img');
+		markerEl.setAttribute('aria-label', 'Odabrana lokacija');
 
 		map.on('click', (e) => {
 			const cLat = e.lngLat.lat;
