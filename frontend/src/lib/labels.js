@@ -135,7 +135,7 @@ export const MAP_LEGEND = {
 			{ colour: '#7E22CE', text: '1,5–2,5 m' },
 			{ colour: '#3B0764', text: '> 2,5 m' }
 		],
-		note: 'Europski model, 90 m, prikaz ~180 m (najveća dubina u bloku); u izvještaju se koristi samo gdje karta Hrvatskih voda nema podatka. Prikazuje samo poplave uz veće rijeke. Prozirno znači da model ne prikazuje poplavu ili da za to područje nema podatka. Izvedeno iz EFAS v3.1.1, ODbL 1.0.'
+		note: 'Europski model, 90 m, prikaz ~180 m (najveća dubina u bloku); u izvještaju se koristi samo kad podatak Hrvatskih voda nije dostupan. Prikazuje samo poplave uz veće rijeke. Prozirno znači da model ne prikazuje poplavu ili da za to područje nema podatka. Izvedeno iz EFAS v3.1.1, ODbL 1.0.'
 	}
 };
 

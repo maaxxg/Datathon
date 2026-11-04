@@ -72,3 +72,25 @@ def test_map_data_geojson_served_as_json(tmp_path):
     r = TestClient(app_).get("/api/map-data/geohazard_x.geojson")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("application/json")
+
+
+def test_report_hv_partial_outage_with_efas(monkeypatch, tmp_path):
+    class FakeEFAS:
+        def available(self):
+            return True
+
+        def depths(self, lat, lon):
+            return {10: 0.17, 100: 1.03, 500: 1.42}
+
+        def close(self):
+            pass
+
+    with _client(monkeypatch, tmp_path, {"velika": "outside", "srednja": "outside", "mala": None}) as c:
+        main.state["efas"] = FakeEFAS()
+        body = c.get("/api/report", params=PETRINJA).json()
+    flood = next(h for h in body["hazards"] if h["hazard"] == "flood")
+    assert flood["level"] == "visoko"
+    assert flood["detail"]["hv_status"] == "unavailable"
+    assert flood["detail"]["hv_unavailable_scenarios"] == ["mala"]
+    assert "mala vjerojatnost (privremeni prekid)" in flood["notes"][0]
+    assert "trenutačno ne odgovara" in body["summary"]

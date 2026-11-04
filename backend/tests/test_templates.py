@@ -160,7 +160,7 @@ def test_seismic_texts():
 def test_efas_texts():
     text = explain_hazard(CASES["efas_rp100"])
     for part in ("europski model EFAS", "90 m", "okvirno", "RP100: 0,45 m",
-                 "karta Hrvatskih voda ovdje nema podataka"):
+                 "samo kad podatak Hrvatskih voda nije dostupan"):
         assert part in text
     assert "RP10:" not in text
     assert "10, 100 i 500 god." in explain_hazard(CASES["efas_dry"])
@@ -205,3 +205,52 @@ def test_actions_text_has_no_unsourced_claims():
     results = [CASES["hv_velika"], CASES["seis_0114"], CASES["landslide_visoka"]]
     for a in recommended_actions(results):
         assert "1964" not in a["description"]
+
+
+# --- D22: HV outage wording ---------------------------------------------------
+
+from app.risk_rules import most_significant
+from app.templates import build_summary, explain_hazard
+
+_OUT_EFAS = ("Servis Hrvatskih voda trenutačno ne odgovara; podatak o poplavama je nepotpun ili "
+             "procijenjen europskim modelom EFAS.")
+_OUT_NONE = "Servis Hrvatskih voda trenutačno ne odgovara; podatak o poplavama nije dostupan."
+_HV_PARTIAL = {"velika": "outside", "srednja": "outside", "mala": None}
+
+
+def _flood(efas_depths):
+    return combine_flood(HV(_HV_PARTIAL), flood_efas_level(efas_depths))
+
+
+def test_efas_explanation_outage_vs_normal():
+    text = explain_hazard(_flood({10: 0.17, 100: 1.03, 500: 1.42}))
+    assert "trenutačno ne odgovara" in text and "ovdje nema podataka" not in text
+    assert "RP10: 0,17 m" in text
+    normal = explain_hazard(flood_efas_level({10: 0.17, 100: 1.03, 500: 1.42}))
+    assert "samo kad podatak Hrvatskih voda nije dostupan" in normal and "ne odgovara" not in normal
+
+
+def test_summary_outage_flood_top():
+    res = [_flood({10: 0.17, 100: 1.03, 500: 1.42})]
+    s = build_summary(res, most_significant(res), True)
+    assert _OUT_EFAS in s and s.index(_OUT_EFAS) < s.index("Banovinu")
+
+
+def test_summary_outage_flood_not_top():
+    res = [_flood({10: 0.0, 100: 0.0, 500: 0.0}), seismic_level(0.114, 3.2)]
+    top = most_significant(res)
+    assert top.hazard == "seismic"
+    assert _OUT_EFAS in build_summary(res, top, False)
+
+
+def test_summary_outage_flood_no_data():
+    res = [_flood({10: None, 100: None, 500: None}), seismic_level(0.061, 4.0)]
+    s = build_summary(res, most_significant(res), False)
+    assert _OUT_NONE in s and _OUT_EFAS not in s
+    only = [res[0]]
+    assert _OUT_NONE in build_summary(only, most_significant(only), False)
+
+
+def test_summary_no_outage_sentence_when_hv_ok():
+    res = [HV({"velika": "d_lt_0_5", "srednja": "outside", "mala": "outside"}), seismic_level(0.061, 4.0)]
+    assert "ne odgovara" not in build_summary(res, most_significant(res), False)

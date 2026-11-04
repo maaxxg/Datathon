@@ -42,16 +42,49 @@ class HazardResult:
 
 # --- floods -----------------------------------------------------------------
 
+DEPTH_LABELS = {
+    "d_lt_0_5": "do 0,5 m",
+    "d_0_5_1_5": "0,5 – 1,5 m",
+    "d_1_5_2_5": "1,5 – 2,5 m",
+    "d_gt_2_5": "više od 2,5 m",
+    "permanent_water": "stalna vodena površina",
+}
 FLOODED = {"d_lt_0_5", "d_0_5_1_5", "d_1_5_2_5", "d_gt_2_5"}
 DEEP = {"d_1_5_2_5", "d_gt_2_5"}
 
 
+SCENARIOS = ("velika", "srednja", "mala")
+_SCENARIO_NAMES = {s: f"{s} vjerojatnost" for s in SCENARIOS}
+
+
+def _hv_answer_text(cls: str) -> str:
+    return "izvan poplavne zone" if cls == "outside" else DEPTH_LABELS.get(cls, cls)
+
+
+def _hv_outage_note(classes: dict[str, str | None], unavailable: list[str]) -> str:
+    if len(unavailable) == len(SCENARIOS):
+        return ("Servis Hrvatskih voda trenutačno ne odgovara (privremeni prekid); karta opasnosti od poplava "
+                "za ovu točku nije mogla biti provjerena.")
+    failed = ", ".join(_SCENARIO_NAMES[s] for s in unavailable)
+    answered = "; ".join(f"{_SCENARIO_NAMES[s]} – {_hv_answer_text(classes[s])}"
+                         for s in SCENARIOS if s not in unavailable)
+    return (f"Servis Hrvatskih voda trenutačno ne odgovara za: {failed} (privremeni prekid). "
+            f"Odgovor za ostale scenarije: {answered}.")
+
+
 def flood_hv_level(classes: dict[str, str | None]) -> HazardResult:
-    """classes: scenario ('velika'|'srednja'|'mala') -> depth class, 'outside', or None if unavailable."""
-    detail = dict(classes)
-    if any(v is None for v in classes.values()):
-        return HazardResult("flood", Level.NO_DATA, "flood_hv", detail,
-                            ["Servis Hrvatskih voda nije odgovorio za sve scenarije."])
+    """classes: scenario ('velika'|'srednja'|'mala') -> depth class, 'outside', or None if unavailable.
+
+    HV has no "not covered" state in our pipeline: a transparent pixel means "outside the flood zones"
+    (NONE), so NO_DATA here arises only from a service failure (D22). detail carries hv_status
+    ("ok" | "unavailable") and the list of scenarios that did not answer.
+    """
+    unavailable = [s for s in SCENARIOS if classes.get(s) is None]
+    detail: dict = dict(classes)
+    detail["hv_status"] = "unavailable" if unavailable else "ok"
+    detail["hv_unavailable_scenarios"] = unavailable
+    if unavailable:
+        return HazardResult("flood", Level.NO_DATA, "flood_hv", detail, [_hv_outage_note(classes, unavailable)])
     if any(v == "permanent_water" for v in classes.values()):
         return HazardResult("flood", Level.HIGH, "flood_hv", detail,
                             ["Točka je na stalnoj vodenoj površini prema karti."])
@@ -77,7 +110,7 @@ def flood_efas_level(depths_m: dict[int, float | None]) -> HazardResult:
     if any(depths_m.get(rp) is None for rp in (10, 100, 500)):
         return HazardResult("flood", Level.NO_DATA, "flood_efas", detail,
                             ["Europski model EFAS prikazuje samo poplave uz veće rijeke; za ovu točku nema podatka."])
-    notes = ["Europski model (90 m), okvirna procjena; podatak s karte Hrvatskih voda ovdje nije dostupan."]
+    notes = ["Europski model (90 m), okvirna procjena."]
 
     if depths_m[10] > 0:
         level = Level.HIGH
@@ -91,15 +124,18 @@ def flood_efas_level(depths_m: dict[int, float | None]) -> HazardResult:
 
 
 def combine_flood(hv: HazardResult, efas: HazardResult | None) -> HazardResult:
-    """HV is authoritative; EFAS replaces it only if HV is NO_DATA and EFAS has data.
+    """HV is authoritative; EFAS replaces it only if HV is NO_DATA (service outage, D22) and EFAS has data.
 
+    The HV outage note always comes first and the hv_* detail flags are copied onto the EFAS result.
     If both are NO_DATA, return HV with the EFAS notes appended (both reasons visible).
     """
     if hv.level is not Level.NO_DATA or efas is None:
         return hv
     if efas.level is Level.NO_DATA:
         return replace(hv, notes=[*hv.notes, *efas.notes])
-    return efas
+    detail = {**efas.detail, "hv_status": hv.detail.get("hv_status"),
+              "hv_unavailable_scenarios": hv.detail.get("hv_unavailable_scenarios", [])}
+    return replace(efas, detail=detail, notes=[*hv.notes, *efas.notes])
 
 
 # --- earthquake -------------------------------------------------------------

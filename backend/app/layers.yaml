@@ -24,7 +24,7 @@ layers:
     year: 2026
     resolution: 90 m
     coverage: croatia
-    note: "koristi se samo gdje karta Hrvatskih voda nema podatka; verzija 3.1.1 (5. 3. 2026; citat u README-u: Baugh et al. 2024); prikazuje samo poplave uz veće rijeke, izvan toga nema podatka; JRC copyright.txt navodi CC BY 4.0, README A02 navodi ODbL 1.0, primjenjujemo stroži (ODbL)."
+    note: "koristi se samo kad podatak Hrvatskih voda nije dostupan (npr. privremeni ispad servisa); verzija 3.1.1 (5. 3. 2026; citat u README-u: Baugh et al. 2024); prikazuje samo poplave uz veće rijeke, izvan toga nema podatka; JRC copyright.txt navodi CC BY 4.0, README A02 navodi ODbL 1.0, primjenjujemo stroži (ODbL)."
 
   seismic:
     title: Europski model potresne opasnosti ESHM20 (PGA, 475 god.)
