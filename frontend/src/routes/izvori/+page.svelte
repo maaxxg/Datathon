@@ -103,7 +103,7 @@
 		<em>poplave → potres → klizišta → likvefakcija → vrtače → nepovoljno za gradnju → podzemna voda</em>.
 	</p>
 
-	<div class="table-wrap">
+	<div class="table-wrap" tabindex="0" role="region" aria-label="Tablica pravila">
 		<table class="rules-table">
 			<thead>
 				<tr>
@@ -225,7 +225,7 @@
 	}
 	.sources-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr));
 		gap: 1rem;
 	}
 	.source-card {
@@ -303,6 +303,10 @@
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-radius: 0.65rem;
+	}
+	.table-wrap:focus-visible {
+		outline: 3px solid #1d4ed8;
+		outline-offset: 2px;
 	}
 	.rules-table {
 		width: 100%;
