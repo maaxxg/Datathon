@@ -265,3 +265,18 @@ def test_summary_outage_mentioned_once_when_efas_is_top():
     assert s.count("ne odgovara") == 1 and _OUT_EFAS in s
     assert "RP10: 0,17 m" in s
     assert "ne odgovara" in explain_hazard(res[0])  # the card explanation keeps its own sentence
+
+
+def test_summary_seismic_top_has_approximate_label_once():
+    res = [seismic_level(0.114, 3.2)]
+    s = build_summary(res, most_significant(res), False)
+    assert s.count("okvirn") == 1 and "ESHM20" in s and "0,114 g" in s
+
+
+def test_summary_outage_once_efas_top_partial_hv():
+    res = [combine_flood(HV({"velika": "outside", "srednja": None, "mala": "outside"}),
+                         flood_efas_level({10: 0.17, 100: 1.03, 500: 1.42}))]
+    top = most_significant(res)
+    assert top.hazard == "flood"
+    s = build_summary(res, top, False)
+    assert s.count("ne odgovara") == 1

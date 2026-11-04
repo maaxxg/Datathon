@@ -193,6 +193,8 @@ def build_summary(results: list[HazardResult], top: HazardResult | None, in_bano
     top_text = explain_hazard(top)
     if outage_sentence:  # the outage is stated once in the summary (D22)
         top_text = top_text.replace(" " + EFAS_OUTAGE_WHY, "")
+    if top.hazard == "seismic" and top.level is not Level.NO_DATA:  # D17: exact g value needs the model label
+        top_text += " Vrijednost je okvirna (europski model ESHM20, mreža ~10 km); detalji su u izvoru na kartici."
     parts = [f"Najznačajniji utvrđeni rizik na lokaciji: {hazard_label} (razina: {level_label}).",
              top_text, no_data_sentence, outage_sentence, scope_sentence]
     return " ".join(p for p in parts if p)
