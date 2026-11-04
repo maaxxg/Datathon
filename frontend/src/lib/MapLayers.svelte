@@ -360,6 +360,8 @@
 	}
 	select {
 		min-height: 2rem;
+		max-width: 100%;
+		padding-inline-end: 1.5rem;
 	}
 	.toggle,
 	.sel {
