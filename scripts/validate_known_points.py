@@ -1,7 +1,10 @@
 """Validate all MUST layers on 10 known reference points across Croatia (PLAN 2. 11. - D).
 
 Usage:
-    python scripts/validate_known_points.py
+    python scripts/validate_known_points.py                 # local mode (rule functions + local data)
+    python scripts/validate_known_points.py --api https://localhost --insecure   # API mode (/api/report)
+
+--insecure skips TLS verification (Caddy internal CA); off by default.
 
 Queries:
 - Hrvatske vode WMS (2019 flood hazard maps: velika, srednja, mala)
@@ -133,5 +136,53 @@ async def run_all():
     print(json.dumps(results_out, ensure_ascii=False, indent=2))
 
 
+def run_api(base: str, insecure: bool) -> None:
+    """Call GET {base}/api/report for every known point and print a compact JSON list."""
+    import httpx
+
+    sys.stdout.reconfigure(encoding="utf-8")
+    if insecure:
+        print("WARNING: --insecure, TLS verification is disabled.", file=sys.stderr)
+    out = []
+    with httpx.Client(verify=not insecure, timeout=30.0) as client:
+        for pt in KNOWN_POINTS:
+            entry = {"id": pt["id"], "name": pt["name"], "lat": pt["lat"], "lon": pt["lon"]}
+            try:
+                r = client.get(f"{base.rstrip('/')}/api/report", params={"lat": pt["lat"], "lon": pt["lon"]})
+                if r.status_code != 200:
+                    entry["error"] = f"HTTP {r.status_code}"
+                else:
+                    d = r.json()
+                    ms = d.get("most_significant")
+                    entry["hazards"] = [
+                        {
+                            "hazard": h["hazard"],
+                            "level": h["level"],
+                            "source": (h.get("source") or {}).get("title"),
+                            "detail": h.get("detail"),
+                            "notes": h.get("notes"),
+                        }
+                        for h in d.get("hazards", [])
+                    ]
+                    entry["most_significant"] = {"hazard": ms["hazard"], "level": ms["level"]} if ms else None
+                    entry["all_no_data"] = d.get("all_no_data")
+            except Exception as e:  # noqa: BLE001 - record and continue
+                entry = {k: entry[k] for k in ("id", "name", "lat", "lon")}
+                entry["error"] = type(e).__name__
+            out.append(entry)
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+    if any("error" in e for e in out):
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    asyncio.run(run_all())
+    import argparse
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--api", metavar="BASE_URL", help="query a running API instead of local rule functions")
+    ap.add_argument("--insecure", action="store_true", help="skip TLS verification (API mode only)")
+    args = ap.parse_args()
+    if args.api:
+        run_api(args.api, args.insecure)
+    else:
+        asyncio.run(run_all())
