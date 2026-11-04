@@ -3,6 +3,7 @@
 	import maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import MapLayers from '$lib/MapLayers.svelte';
+	import PrintInfo from '$lib/PrintInfo.svelte';
 	import { HAZARD_META, LEVEL_META, FLOOD_DEPTH_TEXT, PRESET_LOCATIONS, fmt } from '$lib/labels.js';
 
 	let searchQuery = $state('');
@@ -14,6 +15,7 @@
 	let lon = $state(16.2739);
 
 	let report = $state(null);
+	let generatedAt = $state(null);
 	let loading = $state(false);
 	let errorMsg = $state('');
 
@@ -55,7 +57,7 @@
 			}
 			const data = await res.json();
 			if (id !== reqId) return;
-			report = data;
+			report = data; generatedAt = new Date();
 		} catch (err) {
 			if (id !== reqId) return;
 			errorMsg = err.message || 'Nije moguće dohvatiti izvještaj.';
@@ -166,8 +168,8 @@
 				onfocus={() => (showSuggestions = suggestions.length > 0)}
 				autocomplete="off"
 			/>
-			<button type="button" class="btn-secondary" onclick={() => window.print()}>
-				🖨️ Ispis / PDF
+			<button type="button" class="btn-secondary" disabled={loading || !report || !!errorMsg} onclick={() => window.print()}>
+				<span aria-hidden="true">🖨️</span> Ispis / PDF
 			</button>
 		</div>
 
@@ -217,6 +219,7 @@
 	</section>
 
 	<section class="report-column" aria-live="polite">
+		<PrintInfo {generatedAt} />
 		<div class="location-bar">
 			<div>
 				<span class="eyebrow">Izvještaj za lokaciju</span>

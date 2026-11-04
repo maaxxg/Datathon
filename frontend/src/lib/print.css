@@ -1,0 +1,163 @@
+/*
+ * Print design for the report (Ctrl/Cmd+P -> "Spremi kao PDF", A4).
+ * Imported once from routes/+layout.svelte. No server-side PDF.
+ *
+ * Selectors this file depends on (re-point after teammate PR #22 if they change):
+ *   +layout.svelte : .site-header, .site-footer, .container, .main-content
+ *   +page.svelte   : .search-panel, .map-column, .workspace-grid, .report-column,
+ *                    .geocoder-msg, .suggestions-list, .preset-bar, .map-hint,
+ *                    .top-risk-banner, .badge, .hazard-card, .card-notes, .card-source,
+ *                    .actions-section, .action-card, .report-disclaimer, .status-card,
+ *                    .coords, .eyebrow
+ *   MapLayers.svelte: .layers (inside .map-column), MapLibre: .maplibregl-*
+ *   PrintInfo.svelte: .print-only
+ *
+ * Svelte scoped styles carry a hash class (higher specificity than plain selectors here
+ * and possibly later in the cascade), so !important is used where a scoped rule would win.
+ */
+
+.print-only {
+	display: none;
+}
+
+@page {
+	size: A4;
+	margin: 15mm;
+}
+
+@media print {
+	/* Hidden explicitly (not only via .no-print). */
+	.site-header,
+	.search-panel,
+	.map-column,
+	.no-print,
+	.geocoder-msg,
+	.suggestions-list,
+	.preset-bar,
+	.map-hint,
+	.maplibregl-map,
+	.maplibregl-ctrl,
+	.layers {
+		display: none !important;
+	}
+
+	.print-only {
+		display: block !important;
+		margin: 0 0 4mm 0;
+		padding-bottom: 3mm;
+		border-bottom: 1px solid #000;
+		font-size: 10pt;
+		color: #000;
+	}
+	.print-only p {
+		margin: 0 0 1mm 0;
+		overflow-wrap: anywhere;
+	}
+	.print-only .print-title {
+		font-size: 13pt;
+		font-weight: 700;
+	}
+
+	html,
+	body {
+		background: #fff !important;
+		color: #000 !important;
+		font-size: 10pt;
+		line-height: 1.4;
+	}
+	* {
+		box-shadow: none !important;
+		text-shadow: none !important;
+	}
+	.container {
+		max-width: none !important;
+		padding: 0 !important;
+	}
+	.main-content {
+		padding: 0 !important;
+	}
+
+	/* Single column */
+	.workspace-grid {
+		display: block !important;
+	}
+	.report-column {
+		width: 100% !important;
+	}
+
+	/* Colour-independent look: dark text, white background, dark borders */
+	.report-column,
+	.report-column p,
+	.report-column li,
+	.report-column dt,
+	.report-column dd,
+	.report-column h2,
+	.report-column h3,
+	.report-column h4,
+	.card-source,
+	.card-notes,
+	.coords,
+	.eyebrow {
+		color: #000 !important;
+	}
+	.top-risk-banner,
+	.hazard-card,
+	.actions-section,
+	.action-card,
+	.report-disclaimer,
+	.status-card {
+		background: #fff !important;
+		color: #000 !important;
+		border: 1px solid #000 !important;
+		border-radius: 2mm !important;
+	}
+	.badge {
+		background: #fff !important;
+		color: #000 !important;
+		border: 1px solid #000 !important;
+	}
+	.action-card {
+		border-color: #6b7280 !important;
+	}
+	.card-source {
+		border-top: 1px solid #6b7280 !important;
+		font-size: 9pt;
+	}
+
+	/* Show URLs on paper */
+	.card-source a[href^='http']::after,
+	.actions-section a[href^='http']::after {
+		content: ' (' attr(href) ')';
+		font-size: 8pt;
+		overflow-wrap: anywhere;
+		word-break: break-all;
+	}
+	.card-source a,
+	.actions-section a {
+		color: #000 !important;
+		overflow-wrap: anywhere;
+	}
+
+	/* Page breaks */
+	.hazard-card,
+	.action-card,
+	.top-risk-banner,
+	.report-disclaimer {
+		break-inside: avoid;
+		page-break-inside: avoid;
+	}
+	h1,
+	h2,
+	h3,
+	h4 {
+		break-after: avoid;
+		page-break-after: avoid;
+	}
+
+	.site-footer {
+		background: #fff !important;
+		color: #000 !important;
+		font-size: 9pt;
+		break-inside: avoid;
+	}
+}
