@@ -379,6 +379,7 @@
 										.join(', ')})
 								{/if}
 							</span>
+							{#if h.source.licence}<span><strong>Licenca:</strong> {h.source.licence}</span>{/if}
 							{#if h.source.url && h.source.url !== 'TBD'}
 								<a href={h.source.url} target="_blank" rel="noopener noreferrer">Poveznica na izvor ↗</a>
 							{/if}

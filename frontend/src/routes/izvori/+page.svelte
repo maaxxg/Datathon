@@ -57,7 +57,10 @@
 					</div>
 					<div>
 						<dt>Licenca:</dt>
-						<dd>{item.licence}</dd>
+						<dd>
+							{item.licence}
+							{#if item.licence_note}<br /><span class="licence-note">{item.licence_note}</span>{/if}
+						</dd>
 					</div>
 					{#if item.year && item.year !== 'TBD'}
 						<div>

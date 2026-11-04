@@ -157,8 +157,7 @@ def seismic_level(ag_g: float | None, distance_km: float | None = None, source: 
     detail = {"ag_g": round(ag_g, 3)}
     if distance_km is not None:
         detail["udaljenost_km"] = round(distance_km, 1)
-    notes = ["Okvirna vrijednost iz europskog modela ESHM20 (najbliža točka mreže ~10 km, stijena Vs30 = 760 m/s)."]
-    return HazardResult("seismic", level, source, detail, notes)
+    return HazardResult("seismic", level, source, detail)
 
 
 # --- geohazards (Banovina) --------------------------------------------------
