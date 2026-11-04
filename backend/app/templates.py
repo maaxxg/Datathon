@@ -78,9 +78,12 @@ def _explain_flood_hv(r: HazardResult) -> str | None:
     return None
 
 
+EFAS_OUTAGE_WHY = "Model se koristi jer servis Hrvatskih voda trenutačno ne odgovara."
+
+
 def _explain_flood_efas(r: HazardResult) -> str:
     if r.detail.get("hv_status") == "unavailable":
-        why = "Model se koristi jer servis Hrvatskih voda trenutačno ne odgovara."
+        why = EFAS_OUTAGE_WHY
     else:
         why = "Model se koristi samo kad podatak Hrvatskih voda nije dostupan."
     if r.level is Level.NONE:
@@ -98,17 +101,14 @@ def _explain_seismic(r: HazardResult) -> str | None:
     if not isinstance(ag, (int, float)):
         return None
     ag_txt = _num(ag, 3)
-    dist = r.detail.get("udaljenost_km")
-    tail = f" Najbliža točka mreže udaljena je {_num(dist, 1)} km." if isinstance(dist, (int, float)) else ""
     base = f"ag = {ag_txt} g za povratno razdoblje od 475 god."
-    src = " Vrijednost je određena okvirno, prema europskom modelu ESHM20."
     if r.level is Level.SEISMIC_VERY_LOW:
-        return f"Potresna opasnost: vrlo niska seizmičnost prema Eurokodu 8 ({base}; prag ≤ 0,04 g).{src}{tail}"
+        return f"Potresna opasnost: vrlo niska seizmičnost prema Eurokodu 8 ({base}; prag ≤ 0,04 g)."
     if r.level is Level.SEISMIC_LOW:
-        return f"Potresna opasnost: niska seizmičnost prema Eurokodu 8 ({base}; raspon 0,04 – 0,08 g).{src}{tail}"
+        return f"Potresna opasnost: niska seizmičnost prema Eurokodu 8 ({base}; raspon 0,04 – 0,08 g)."
     if r.level is Level.SEISMIC_ABOVE_LOW:
         return (f"Potresna opasnost: iznad praga niske seizmičnosti prema Eurokodu 8 ({base}; "
-                f"> 0,08 g).{src}{tail}")
+                f"> 0,08 g).")
     return None
 
 
@@ -190,8 +190,13 @@ def build_summary(results: list[HazardResult], top: HazardResult | None, in_bano
                 f"{outage_sentence} {scope_sentence}").replace("  ", " ")
     hazard_label = HAZARD_NAMES.get(top.hazard, top.hazard)
     level_label = LEVEL_LABELS.get(top.level, top.level.value)
+    top_text = explain_hazard(top)
+    if outage_sentence:  # the outage is stated once in the summary (D22)
+        top_text = top_text.replace(" " + EFAS_OUTAGE_WHY, "")
+    if top.hazard == "seismic" and top.level is not Level.NO_DATA:  # D17: exact g value needs the model label
+        top_text += " Vrijednost je okvirna (europski model ESHM20, mreža ~10 km); detalji su u izvoru na kartici."
     parts = [f"Najznačajniji utvrđeni rizik na lokaciji: {hazard_label} (razina: {level_label}).",
-             explain_hazard(top), no_data_sentence, outage_sentence, scope_sentence]
+             top_text, no_data_sentence, outage_sentence, scope_sentence]
     return " ".join(p for p in parts if p)
 
 

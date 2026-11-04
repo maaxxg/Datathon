@@ -149,9 +149,10 @@ def test_groundwater_texts():
 
 def test_seismic_texts():
     hi = explain_hazard(CASES["seis_0114"])
-    for part in ("iznad praga niske seizmičnosti", "0,114 g", "ESHM20", "okvirno", "475 god.",
-                 "prema Eurokodu 8", "udaljena je 3,2 km"):
+    for part in ("iznad praga niske seizmičnosti", "0,114 g", "475 god.", "prema Eurokodu 8", "> 0,08 g"):
         assert part in hi
+    for part in ("ESHM20", "okvirno", "Vs30", "km"):  # D17 facts are shown once, in the card footer
+        assert part not in hi
     low = explain_hazard(CASES["seis_0061"])
     assert "niska seizmičnost" in low and "vrlo niska" not in low
     assert "vrlo niska seizmičnost" in explain_hazard(CASES["seis_003"])
@@ -254,3 +255,28 @@ def test_summary_outage_flood_no_data():
 def test_summary_no_outage_sentence_when_hv_ok():
     res = [HV({"velika": "d_lt_0_5", "srednja": "outside", "mala": "outside"}), seismic_level(0.061, 4.0)]
     assert "ne odgovara" not in build_summary(res, most_significant(res), False)
+
+
+def test_summary_outage_mentioned_once_when_efas_is_top():
+    res = [_flood({10: 0.17, 100: 1.03, 500: 1.42})]
+    top = most_significant(res)
+    assert top.hazard == "flood"
+    s = build_summary(res, top, False)
+    assert s.count("ne odgovara") == 1 and _OUT_EFAS in s
+    assert "RP10: 0,17 m" in s
+    assert "ne odgovara" in explain_hazard(res[0])  # the card explanation keeps its own sentence
+
+
+def test_summary_seismic_top_has_approximate_label_once():
+    res = [seismic_level(0.114, 3.2)]
+    s = build_summary(res, most_significant(res), False)
+    assert s.count("okvirn") == 1 and "ESHM20" in s and "0,114 g" in s
+
+
+def test_summary_outage_once_efas_top_partial_hv():
+    res = [combine_flood(HV({"velika": "outside", "srednja": None, "mala": "outside"}),
+                         flood_efas_level({10: 0.17, 100: 1.03, 500: 1.42}))]
+    top = most_significant(res)
+    assert top.hazard == "flood"
+    s = build_summary(res, top, False)
+    assert s.count("ne odgovara") == 1

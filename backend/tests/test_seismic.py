@@ -47,9 +47,6 @@ def test_seismic_reader_missing_file(tmp_path):
     assert reader.pga_g(45.4375, 16.2739) is None
 
 
-SEISMIC_NOTE = "Okvirna vrijednost iz europskog modela ESHM20 (najbliža točka mreže ~10 km, stijena Vs30 = 760 m/s)."
-
-
 def _petrinja_grid(tmp_path):
     path = tmp_path / "g.json"
     path.write_text(json.dumps({"points": [{"lat": 45.4, "lon": 16.28213, "ag_g": 0.11446}]}), encoding="utf-8")
@@ -60,7 +57,7 @@ def test_seismic_result_has_note_and_distance(tmp_path):
     ag, dist = _petrinja_grid(tmp_path).pga_g(45.4375, 16.2739)
     res = seismic_level(ag, dist)
     assert res.level is Level.SEISMIC_ABOVE_LOW
-    assert res.notes == [SEISMIC_NOTE]
+    assert res.notes == []  # D17 facts live once in layers.yaml (card footer)
     assert res.detail["ag_g"] == 0.114
     assert res.detail["udaljenost_km"] == round(dist, 1)
     assert 3 < res.detail["udaljenost_km"] < 5  # ~0.0375 deg lat = ~4.2 km
@@ -78,3 +75,16 @@ def test_seismic_source_note_in_serialised_result_and_catalogue(tmp_path):
     note = CATALOGUE["layers"]["seismic"]["note"]
     assert serialise(seismic_level(ag, dist))["source"]["note"] == note
     assert "data.gov.hr" in note and "760" in note
+
+
+def test_sources_catalogue_seismic_and_efas_licence():
+    seismic = CATALOGUE["layers"]["seismic"]
+    for part in ("Okvirna procjena", "data.gov.hr", "Vs30 = 760"):
+        assert part in seismic["note"]
+    assert "~10 km" in seismic["resolution"] and "Vs30" not in seismic["resolution"]
+    efas = CATALOGUE["layers"]["flood_efas"]
+    assert efas["licence"] == "ODbL 1.0" and "ODbL" in efas["licence_note"]
+    assert "copyright.txt" not in efas["note"]
+    # licence_note is for /izvori only, not part of the per-card source
+    ag, dist = 0.114, 4.2
+    assert "licence_note" not in serialise(seismic_level(ag, dist))["source"]
