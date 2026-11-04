@@ -24,7 +24,11 @@
 	let marker;
 	let debounceTimer;
 
+	// Only the most recent fetchReport call may change report/errorMsg/loading.
+	let reqId = 0;
+
 	async function fetchReport(targetLat, targetLon, labelText = '') {
+		const id = ++reqId;
 		lat = Number(targetLat.toFixed(5));
 		lon = Number(targetLon.toFixed(5));
 		if (labelText) {
@@ -38,8 +42,10 @@
 		}
 		try {
 			const res = await fetch(`/api/report?lat=${lat}&lon=${lon}`);
+			if (id !== reqId) return;
 			if (!res.ok) {
 				const body = await res.json().catch(() => ({}));
+				if (id !== reqId) return;
 				if (Array.isArray(body.detail)) throw new Error('Neispravna lokacija.');
 					throw new Error(
 						typeof body.detail === 'string' && body.detail
@@ -47,11 +53,14 @@
 							: `Greška poslužitelja (${res.status})`
 					);
 			}
-			report = await res.json();
+			const data = await res.json();
+			if (id !== reqId) return;
+			report = data;
 		} catch (err) {
+			if (id !== reqId) return;
 			errorMsg = err.message || 'Nije moguće dohvatiti izvještaj.';
 		} finally {
-			loading = false;
+			if (id === reqId) loading = false;
 		}
 	}
 
