@@ -64,3 +64,22 @@ async def test_classify_service_error_gives_none():
     result = await client.classify(45.0, 16.0)
     assert result == {"velika": None, "srednja": None, "mala": None}
     await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_hv_failed_tile_not_cached():
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if len(calls) <= 3:  # first classify: all three scenarios fail with an HTML 502
+            return httpx.Response(502, text="<html>Bad Gateway</html>", headers={"content-type": "text/html"})
+        return httpx.Response(200, content=_png((0x73, 0xDF, 0xFF, 255)), headers={"content-type": "image/png"})
+
+    client = HVFloodClient(httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    assert await client.classify(45.4375, 16.2739) == {"velika": None, "srednja": None, "mala": None}
+    assert len(client._cache) == 0
+    second = await client.classify(45.4375, 16.2739)
+    assert second == {"velika": "d_0_5_1_5", "srednja": "d_0_5_1_5", "mala": "d_0_5_1_5"}
+    assert len(calls) == 6
+    await client.aclose()

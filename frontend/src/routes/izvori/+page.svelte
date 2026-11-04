@@ -121,14 +121,14 @@
 						<strong>Srednje:</strong> srednja vjerojatnost s dubinom ≤ 1,5 m.<br />
 						<strong>Nisko:</strong> samo mala vjerojatnost.<br />
 						<strong>Nema prema karti:</strong> točka izvan svih zona unutar obuhvata karte.<br />
-						<strong>Nema podataka:</strong> servis Hrvatskih voda nije odgovorio za bilo koji od scenarija.
+						<strong>Nema podataka:</strong> servis Hrvatskih voda trenutačno ne odgovara za barem jedan od scenarija (privremeni ispad).
 					</td>
 				</tr>
 				<tr>
 					<td><strong>Poplave (rezerva)</strong></td>
 					<td>Copernicus EFAS v3.1.1 (90 m)</td>
 					<td>
-						Koristi se isključivo kada servis Hrvatskih voda nema podatka za točku.<br />
+						Koristi se isključivo kada podatak Hrvatskih voda nije dostupan (privremeni ispad servisa); ispad se tada izričito navodi u izvještaju.<br />
 						<strong>Visoko:</strong> dubina &gt; 0 m za povratno razdoblje 10 god. ·
 						<strong>Srednje:</strong> dubina &gt; 0 m za povratno razdoblje 100 god. ·
 						<strong>Nisko:</strong> dubina &gt; 0 m za povratno razdoblje 500 god. ·

@@ -162,3 +162,56 @@ def test_out_of_coverage_checked_before_layer_loaded():
 def test_layer_loaded_default_keeps_behaviour():
     assert unfavourable_level(False, True).level is Level.NONE
     assert susceptibility_level("landslide", "visoka", True).level is Level.HIGH
+
+
+# --- D22: HV outage, EFAS fallback with explicit note ------------------------
+
+EFAS_HIGH = {10: 0.17, 100: 1.03, 500: 1.42}
+ALL_FAILED_NOTE = ("Servis Hrvatskih voda trenutačno ne odgovara (privremeni prekid); karta opasnosti od "
+                   "poplava za ovu točku nije mogla biti provjerena.")
+PARTIAL_NOTE = ("Servis Hrvatskih voda trenutačno ne odgovara za: mala vjerojatnost (privremeni prekid). "
+                "Odgovor za ostale scenarije: velika vjerojatnost – izvan poplavne zone; "
+                "srednja vjerojatnost – izvan poplavne zone.")
+
+
+def test_combine_hv_all_fail_efas_data():
+    r = combine_flood(flood_hv_level({"velika": None, "srednja": None, "mala": None}), flood_efas_level(EFAS_HIGH))
+    assert r.level is Level.HIGH and r.source == "flood_efas"
+    assert r.notes[0] == ALL_FAILED_NOTE
+    assert r.detail["hv_status"] == "unavailable"
+    assert r.detail["hv_unavailable_scenarios"] == ["velika", "srednja", "mala"]
+
+
+def test_combine_hv_partial_fail_efas_data():
+    hv = flood_hv_level({"velika": "outside", "srednja": "outside", "mala": None})
+    assert hv.level is Level.NO_DATA  # Q1: no partial level
+    r = combine_flood(hv, flood_efas_level(EFAS_HIGH))
+    assert r.level is Level.HIGH and r.source == "flood_efas"
+    assert r.notes[0] == PARTIAL_NOTE
+    assert r.detail["hv_unavailable_scenarios"] == ["mala"]
+
+
+def test_partial_note_uses_depth_label():
+    hv = flood_hv_level({"velika": "d_1_5_2_5", "srednja": None, "mala": None})
+    assert hv.notes[0].endswith("Odgovor za ostale scenarije: velika vjerojatnost – 1,5 – 2,5 m.")
+
+
+@pytest.mark.parametrize("efas", [flood_efas_level({10: None, 100: None, 500: None}), None])
+def test_combine_hv_partial_fail_no_efas(efas):
+    r = combine_flood(flood_hv_level({"velika": "outside", "srednja": "outside", "mala": None}), efas)
+    assert r.level is Level.NO_DATA and r.source == "flood_hv"
+    assert r.notes[0] == PARTIAL_NOTE
+    assert r.detail["hv_status"] == "unavailable"
+    assert r.detail["hv_unavailable_scenarios"] == ["mala"]
+
+
+def test_combine_hv_ok():
+    r = combine_flood(flood_hv_level({"velika": "outside", "srednja": "outside", "mala": "d_1_5_2_5"}),
+                      flood_efas_level(EFAS_HIGH))
+    assert r.level is Level.LOW and r.source == "flood_hv"
+    assert r.detail["hv_status"] == "ok" and r.detail["hv_unavailable_scenarios"] == []
+    assert not any("ne odgovara" in n for n in r.notes)
+
+
+def test_efas_note_has_no_hv_clause():
+    assert flood_efas_level(EFAS_HIGH).notes == ["Europski model (90 m), okvirna procjena."]

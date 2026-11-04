@@ -4,15 +4,8 @@ Works without an LLM: every text and action is derived strictly from HazardResul
 """
 from __future__ import annotations
 
-from .risk_rules import FLOODED, HAZARD_ORDER, HazardResult, Level
+from .risk_rules import DEPTH_LABELS, FLOODED, HAZARD_ORDER, HazardResult, Level
 
-DEPTH_LABELS = {
-    "d_lt_0_5": "do 0,5 m",
-    "d_0_5_1_5": "0,5 – 1,5 m",
-    "d_1_5_2_5": "1,5 – 2,5 m",
-    "d_gt_2_5": "više od 2,5 m",
-    "permanent_water": "stalna vodena površina",
-}
 
 HAZARD_NAMES = {
     "flood": "poplave",
@@ -86,13 +79,18 @@ def _explain_flood_hv(r: HazardResult) -> str | None:
 
 
 def _explain_flood_efas(r: HazardResult) -> str:
+    if r.detail.get("hv_status") == "unavailable":
+        why = "Model se koristi jer servis Hrvatskih voda trenutačno ne odgovara."
+    else:
+        why = "Model se koristi samo kad podatak Hrvatskih voda nije dostupan."
     if r.level is Level.NONE:
         return ("Procjena (europski model EFAS, 90 m, okvirno): dubina plavljenja je 0 m za povratna "
-                "razdoblja 10, 100 i 500 god. Model se koristi jer karta Hrvatskih voda ovdje nema podataka.")
-    parts = [f"RP{rp[2:]}: {_num(val, 2)} m" for rp, val in r.detail.items() if val and val > 0]
+                f"razdoblja 10, 100 i 500 god. {why}")
+    parts = [f"RP{k[2:]}: {_num(val, 2)} m" for k, val in r.detail.items()
+             if k.startswith("rp") and val and val > 0]
     joined = ", ".join(parts)
     return (f"Procjena (europski model EFAS, 90 m, okvirno): moguće je plavljenje; dubine po povratnom razdoblju "
-            f"(RP, u godinama): {joined}. Model se koristi jer karta Hrvatskih voda ovdje nema podataka.")
+            f"(RP, u godinama): {joined}. {why}")
 
 
 def _explain_seismic(r: HazardResult) -> str | None:
@@ -172,17 +170,28 @@ def build_summary(results: list[HazardResult], top: HazardResult | None, in_bano
     with_data = [HAZARD_NAMES_ACC.get(r.hazard, r.hazard) for r in ordered if r.level is not Level.NO_DATA]
     no_data_sentence = f"Nema podataka za: {', '.join(no_data)}." if no_data else ""
 
+    flood = next((r for r in results if r.hazard == "flood"), None)
+    outage_sentence = ""
+    if flood is not None and flood.detail.get("hv_status") == "unavailable":
+        outage_sentence = (
+            "Servis Hrvatskih voda trenutačno ne odgovara; podatak o poplavama nije dostupan."
+            if flood.level is Level.NO_DATA
+            else "Servis Hrvatskih voda trenutačno ne odgovara; podatak o poplavama je nepotpun ili "
+                 "procijenjen europskim modelom EFAS.")
+
     if results and not with_data:
-        return f"Za ovu lokaciju trenutno nema dostupnih podataka o promatranim opasnostima. {scope_sentence}"
+        return (f"Za ovu lokaciju trenutno nema dostupnih podataka o promatranim opasnostima. "
+                f"{outage_sentence} {scope_sentence}").replace("  ", " ")
     if top is None:
         if no_data:
             return (f"Prema dostupnim kartama nije utvrđena povišena opasnost za: {', '.join(with_data)}. "
-                    f"{no_data_sentence} {scope_sentence}")
-        return f"Prema dostupnim kartama na odabranoj lokaciji nije utvrđena povišena opasnost. {scope_sentence}"
+                    f"{no_data_sentence} {outage_sentence} {scope_sentence}").replace("  ", " ")
+        return ("Prema dostupnim kartama na odabranoj lokaciji nije utvrđena povišena opasnost. "
+                f"{outage_sentence} {scope_sentence}").replace("  ", " ")
     hazard_label = HAZARD_NAMES.get(top.hazard, top.hazard)
     level_label = LEVEL_LABELS.get(top.level, top.level.value)
     parts = [f"Najznačajniji utvrđeni rizik na lokaciji: {hazard_label} (razina: {level_label}).",
-             explain_hazard(top), no_data_sentence, scope_sentence]
+             explain_hazard(top), no_data_sentence, outage_sentence, scope_sentence]
     return " ".join(p for p in parts if p)
 
 
