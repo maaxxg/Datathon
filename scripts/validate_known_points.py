@@ -167,9 +167,12 @@ def run_api(base: str, insecure: bool) -> None:
                     entry["most_significant"] = {"hazard": ms["hazard"], "level": ms["level"]} if ms else None
                     entry["all_no_data"] = d.get("all_no_data")
             except Exception as e:  # noqa: BLE001 - record and continue
+                entry = {k: entry[k] for k in ("id", "name", "lat", "lon")}
                 entry["error"] = type(e).__name__
             out.append(entry)
     print(json.dumps(out, ensure_ascii=False, indent=2))
+    if any("error" in e for e in out):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

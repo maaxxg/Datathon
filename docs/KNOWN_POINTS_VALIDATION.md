@@ -60,11 +60,12 @@ Odjeljci 1 i 2 ostaju nepromijenjeni. Ovdje su vrijednosti koje korisnik stvarno
 
 Poplava (razina i HV razredi) je u svih 10 točaka jednaka odjeljku 2: nema razlike uživo HV vrijednosti.
 
-- Petrinja 1–4, Sisak, Glina, Kostajnica, Karlovac, Gunja, Zagreb, Split, Osijek, potres $a_g$ (sve točke): npr. `0,1145` je sada `0,114`, `0,1086` je `0,109`, `0,1759` je `0,176`, `0,0688` je `0,069` i sl. Razina potresa nepromijenjena. Uzrok: rounding/presentation (API zaokružuje na 3 decimale).
+- Potres $a_g$ (svih 10 točaka): npr. `0,1145` je sada `0,114`, `0,1086` je `0,109`, `0,1759` je `0,176`, `0,0688` je `0,069` i sl. Razina potresa nepromijenjena. Uzrok: rounding/presentation (API zaokružuje na 3 decimale).
 - Gunja, EFAS `0,17 / 1,03 / 1,42 m`: više se ne prikazuje. Uzrok: combine_flood prikazuje EFAS samo kad je HV `NO_DATA` (opisano gore; nije promjena podataka). Ostali EFAS stupci (`0 / 0 / 0`) iz odjeljka 2 više nisu relevantni: uzrok D20 (nodata/izvan rastera je `NO_DATA`, ne 0), a u izvješću se ionako ne koriste jer HV ima podatak.
 - Petrinja 2, 3, Glina, Kostajnica, Karlovac, Gunja, Zagreb, Split, Osijek, podzemna voda: u odjeljku 2 nije bila (samo Petrinja 1: `1,96 m`, 70 m, ista vrijednost). Uzrok: D16 groundwater added (u Banovini: Petrinja 2 `2,745 m` / 13 m, Sisak `5,4 m` / 57 m, Glina `1,065 m` / 46 m, Kostajnica `NO_DATA`, nema bušotine u 1 km; izvan Banovine `NO_DATA`).
-- Petrinja 1–4, klizišta/vrtače (i likvefakcija/vrtače za Kostajnicu): u odjeljku 2 nisu bili prikazani; sada `NO_DATA` s bilješkom "Točka nije unutar poligona studije." Uzrok: brief 010 missing/outside-polygon → NO_DATA (uspoređivanje s odjeljkom 2 nije moguće ćeliju po ćeliju jer ih tamo nema).
-- Nepovoljno za gradnju: za točke u Banovini `nema prema karti` (`NONE`), u odjeljku 2 nije bilo prikazano. Uzrok: isti razlog kao gore (nova prezentacija svih ćelija u API-ju), ne promjena podataka.
+- Klizišta i vrtače kod Petrinje (središte), Petrinje (Matije Gupca 12), Siska i Gline, te likvefakcija i vrtače kod Hrvatske Kostajnice: u odjeljku 2 nisu bili prikazani; sada `NO_DATA` s bilješkom "Točka nije unutar poligona studije." Uzrok: izvan poligona studije → NO_DATA (SPEC §6 to ne navodi izričito; otvorena napomena nakon PR-a #16). Usporedba ćeliju po ćeliju s odjeljkom 2 nije moguća jer ih tamo nema.
+- Nepovoljno za gradnju (točke 1–5 u Banovini): ćelija nije bila prikazana u odjeljku 2, a sada je `nema prema karti` (`NONE`) iz API-ja; nije promjena podataka.
+- Otvoreno opažanje (nije popravljeno u ovom PR-u): kod Hrvatske Kostajnice je "nepovoljno za gradnju" `NONE`, dok su vrtače i likvefakcija u istoj točki `NO_DATA` (izvan poligona); semantika je možda nedosljedna i treba je odlučiti zasebno.
 - Petrinja 2, podzemna voda, format datuma: izvor daje `16.2.2021. 9:14:35`, a Petrinja 1 `16.02.2021.`; bilješka u izvješću je normalizirana ("16. 2. 2021."). Uzrok: rounding/presentation.
 - Najznačajniji rizik: nepromijenjen u svih 10 točaka (`Likvefakcija`, `Klizišta`, `Potres`).
 
