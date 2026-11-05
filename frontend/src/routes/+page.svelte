@@ -31,10 +31,24 @@
 
 	let mapObj = $state(null);
 
+	let mapColumnEl;
+	let mapColHeight = $state(0);
+
 	let mapContainer;
 	let map;
 	let marker;
 	let debounceTimer;
+
+	$effect(() => {
+		if (!mapColumnEl) return;
+		const ro = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				mapColHeight = Math.round(entry.contentRect.height);
+			}
+		});
+		ro.observe(mapColumnEl);
+		return () => ro.disconnect();
+	});
 
 	// Only the most recent fetchReport call may change report/errorMsg/loading.
 	let reqId = 0;
@@ -220,7 +234,7 @@
 </section>
 
 <div class="workspace-grid">
-	<section class="map-column no-print" aria-label="Interaktivna karta">
+	<section class="map-column no-print" aria-label="Interaktivna karta" bind:this={mapColumnEl}>
 		<div class="map-frame" bind:this={mapContainer}></div>
 		<MapLayers map={mapObj} />
 		<p class="map-hint">
@@ -228,13 +242,17 @@
 		</p>
 	</section>
 
-	<section class="report-column" aria-live="polite">
+	<section
+		class="report-column"
+		aria-live="polite"
+		style={mapColHeight > 0 ? `max-height: ${mapColHeight}px; height: ${mapColHeight}px;` : ''}
+	>
 		<div class="location-bar">
-			<div>
+			<div class="location-bar-header">
 				<span class="eyebrow">Izvještaj za lokaciju</span>
-				<h2>{selectedLabel}</h2>
-				<p class="coords">WGS84 koordinate: <code>{fmt(lat, 5)}; {fmt(lon, 5)}</code></p>
+				<span class="coords">WGS84: <code>{fmt(lat, 5)}; {fmt(lon, 5)}</code></span>
 			</div>
+			<h2>{selectedLabel}</h2>
 		</div>
 
 		{#if loading}
@@ -406,7 +424,26 @@
 				</div>
 			{:else}
 				<div class="empty-available-card">
-					<p>Za ovu točku trenutno nema utvrđenih podataka u obrađenim slojevima (pogledajte opasnosti bez podataka ispod).</p>
+					<p>Za ovu točku trenutno nema utvrđenih povišenih rizika u obrađenim podacima.</p>
+				</div>
+			{/if}
+
+			{#if noDataHazards.length > 0}
+				<div class="nodata-compact-box">
+					<div class="nodata-compact-title">
+						<span>Nedostupni podaci ({noDataHazards.length})</span>
+						<span class="nodata-compact-subtitle">Nema zabilježenih podataka za ovu točku</span>
+					</div>
+					<div class="nodata-pills">
+						{#each noDataHazards as h}
+							{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, icon: '○' }}
+							<div class="nodata-pill">
+								<span class="nodata-pill-icon" aria-hidden="true">{meta.icon}</span>
+								<span class="nodata-pill-name">{meta.title}</span>
+								<span class="nodata-pill-tag">Nema podataka</span>
+							</div>
+						{/each}
+					</div>
 				</div>
 			{/if}
 
@@ -433,71 +470,6 @@
 		{/if}
 	</section>
 </div>
-
-{#if report && noDataHazards.length > 0}
-	<section class="below-section" aria-label="Opasnosti bez dostupnih podataka">
-		<div class="below-header">
-			<span class="eyebrow">Ostale opasnosti</span>
-			<h3>Opasnosti bez dostupnih podataka za ovu točku ({noDataHazards.length})</h3>
-			<p class="below-desc">
-				Za ove opasnosti podaci nisu obuhvatili odabranu točku (npr. lokalizirane studije) ili sloj još nije učitan u sustav.
-			</p>
-		</div>
-
-		<div class="nodata-cards-grid">
-			{#each noDataHazards as h}
-				{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, subtitle: '', icon: 'ℹ️' }}
-				{@const lvl = LEVEL_META[h.level] || LEVEL_META.nema_podataka}
-				<article class="hazard-card tone-border-{lvl.tone}">
-					<div class="card-top">
-						<div>
-							<h4><span aria-hidden="true">{meta.icon}</span> {meta.title}</h4>
-							{#if meta.subtitle}
-								<p class="card-sub">{meta.subtitle}</p>
-							{/if}
-						</div>
-						<span class="badge tone-{lvl.tone}">
-							<span aria-hidden="true">{lvl.icon}</span> {lvl.label}
-						</span>
-					</div>
-
-					{#if h.explanation}
-						<p class="card-explanation">{h.explanation}</p>
-					{/if}
-
-					{#if h.notes && h.notes.length > 0}
-						<ul class="card-notes">
-							{#each h.notes as note}
-								<li>{note}</li>
-							{/each}
-						</ul>
-					{/if}
-
-					{#if h.source && h.source.title}
-						<footer class="card-source">
-							<span>
-								<strong>Izvor:</strong>
-								{[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
-								{#if h.source.year || h.source.resolution}
-									({[h.source.year, h.source.resolution && `rezolucija: ${h.source.resolution}`]
-										.filter(Boolean)
-										.join(', ')})
-								{/if}
-							</span>
-							{#if h.source.licence}<span><strong>Licenca:</strong> {h.source.licence}</span>{/if}
-							{#if h.source.url && h.source.url !== 'TBD'}
-								<a href={h.source.url} target="_blank" rel="noopener noreferrer">Poveznica na izvor ↗</a>
-							{/if}
-							{#if h.source.note}
-								<span class="source-note">{h.source.note}</span>
-							{/if}
-						</footer>
-					{/if}
-				</article>
-			{/each}
-		</div>
-	</section>
-{/if}
 
 <style>
 	.sr-only {
@@ -624,7 +596,7 @@
 	@media (min-width: 992px) {
 		.workspace-grid {
 			grid-template-columns: minmax(0, 1.4fr) minmax(360px, 1fr);
-			align-items: stretch;
+			align-items: start;
 		}
 	}
 	.map-column {
@@ -637,26 +609,30 @@
 		.map-column {
 			position: sticky;
 			top: 1rem;
-			max-height: calc(100vh - 2rem);
+		}
+	}
+	.report-column {
+		min-width: 0;
+	}
+	@media (min-width: 992px) {
+		.report-column {
 			overflow-y: auto;
-			display: flex;
-			flex-direction: column;
-			gap: 0.75rem;
+			padding-right: 0.35rem;
 			scrollbar-width: thin;
 			scrollbar-color: #94a3b8 #f1f5f9;
 		}
-		.map-column::-webkit-scrollbar {
-			width: 8px;
+		.report-column::-webkit-scrollbar {
+			width: 7px;
 		}
-		.map-column::-webkit-scrollbar-track {
+		.report-column::-webkit-scrollbar-track {
 			background: #f1f5f9;
 			border-radius: 4px;
 		}
-		.map-column::-webkit-scrollbar-thumb {
+		.report-column::-webkit-scrollbar-thumb {
 			background-color: #94a3b8;
 			border-radius: 4px;
 		}
-		.map-column::-webkit-scrollbar-thumb:hover {
+		.report-column::-webkit-scrollbar-thumb:hover {
 			background-color: #64748b;
 		}
 	}
@@ -684,6 +660,14 @@
 		padding: 1rem 1.25rem;
 		margin-bottom: 1rem;
 	}
+	.location-bar-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 0.2rem;
+	}
 	.eyebrow {
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
@@ -692,13 +676,21 @@
 		color: var(--muted);
 	}
 	.location-bar h2 {
-		margin: 0.15rem 0 0.25rem 0;
+		margin: 0.15rem 0 0 0;
 		font-size: 1.3rem;
 	}
 	.coords {
 		margin: 0;
-		font-size: 0.88rem;
+		font-size: 0.82rem;
 		color: var(--muted);
+		background: #f1f5f9;
+		padding: 0.2rem 0.5rem;
+		border-radius: 0.375rem;
+		border: 1px solid #e2e8f0;
+	}
+	.coords code {
+		font-weight: 600;
+		color: #1e293b;
 	}
 	.top-risk-banner {
 		border-radius: 0.75rem;
@@ -920,29 +912,73 @@
 	.empty-available-card p {
 		margin: 0;
 	}
-	.below-section {
-		margin-top: 2rem;
-		padding-top: 1.5rem;
-		border-top: 2px solid var(--border);
+
+	/* Dimmed, compact list for hazards without data on the right side */
+	.nodata-compact-box {
+		margin-top: 1rem;
+		padding: 0.75rem 0.9rem;
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		border-radius: 0.65rem;
+		opacity: 0.75;
+		transition: opacity 0.2s ease;
 	}
-	.below-header {
-		margin-bottom: 1rem;
+	.nodata-compact-box:hover {
+		opacity: 1;
 	}
-	.below-header h3 {
-		margin: 0.2rem 0 0.35rem 0;
-		font-size: 1.25rem;
+	.nodata-compact-title {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+		font-size: 0.78rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: #64748b;
 	}
-	.below-desc {
-		margin: 0;
-		color: var(--muted);
-		font-size: 0.92rem;
+	.nodata-compact-subtitle {
+		font-size: 0.75rem;
+		font-weight: 400;
+		text-transform: none;
+		letter-spacing: normal;
+		color: #94a3b8;
 	}
-	.nodata-cards-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-		gap: 1rem;
+	.nodata-pills {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
 	}
-	.nodata-cards-grid .hazard-card {
+	.nodata-pill {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.35rem 0.65rem;
 		background: #ffffff;
+		border: 1px solid #e2e8f0;
+		border-radius: 0.375rem;
+		font-size: 0.82rem;
+		color: #64748b;
+	}
+	.nodata-pill-icon {
+		margin-right: 0.45rem;
+		font-size: 0.85rem;
+		filter: grayscale(1);
+		opacity: 0.7;
+	}
+	.nodata-pill-name {
+		font-weight: 500;
+		color: #475569;
+		flex: 1;
+	}
+	.nodata-pill-tag {
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: #94a3b8;
+		background: #f1f5f9;
+		padding: 0.15rem 0.45rem;
+		border-radius: 0.25rem;
+		letter-spacing: 0.02em;
 	}
 </style>
