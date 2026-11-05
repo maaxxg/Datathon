@@ -17,6 +17,18 @@
 	let loading = $state(false);
 	let errorMsg = $state('');
 
+	let availableHazards = $derived(
+		report && Array.isArray(report.hazards)
+			? report.hazards.filter((h) => h.level !== 'nema_podataka')
+			: []
+	);
+
+	let noDataHazards = $derived(
+		report && Array.isArray(report.hazards)
+			? report.hazards.filter((h) => h.level === 'nema_podataka')
+			: []
+	);
+
 	let mapObj = $state(null);
 
 	let mapContainer;
@@ -280,117 +292,123 @@
 				</div>
 			{/if}
 
-			<div class="cards-list">
-				{#each report.hazards as h}
-					{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, subtitle: '', icon: 'ℹ️' }}
-					{@const lvl = LEVEL_META[h.level] || LEVEL_META.nema_podataka}
-					<article class="hazard-card tone-border-{lvl.tone}">
-						<div class="card-top">
-							<div>
-								<h3><span aria-hidden="true">{meta.icon}</span> {meta.title}</h3>
-								{#if meta.subtitle}
-									<p class="card-sub">{meta.subtitle}</p>
-								{/if}
-							</div>
-							<span class="badge tone-{lvl.tone}">
-								<span aria-hidden="true">{lvl.icon}</span> {lvl.label}
-							</span>
-						</div>
-
-						{#if h.explanation}
-							<p class="card-explanation">{h.explanation}</p>
-						{/if}
-
-						{#if h.detail && h.hazard === 'flood' && h.level !== 'nema_podataka' && h.detail.velika !== undefined}
-						<dl class="detail-grid">
-							<div>
-								<dt>Velika vjerojatnost:</dt>
-								<dd>{FLOOD_DEPTH_TEXT[h.detail.velika] || h.detail.velika || 'nema podatka'}</dd>
-							</div>
-							<div>
-								<dt>Srednja vjerojatnost:</dt>
-								<dd>{FLOOD_DEPTH_TEXT[h.detail.srednja] || h.detail.srednja || 'nema podatka'}</dd>
-							</div>
-							<div>
-								<dt>Mala vjerojatnost:</dt>
-								<dd>{FLOOD_DEPTH_TEXT[h.detail.mala] || h.detail.mala || 'nema podatka'}</dd>
-							</div>
-						</dl>
-					{:else if h.detail && h.hazard === 'flood' && h.detail.rp10 !== undefined}
-						<dl class="detail-grid">
-							{#each [['10', h.detail.rp10], ['100', h.detail.rp100], ['500', h.detail.rp500]] as [rp, val]}
+			{#if availableHazards.length > 0}
+				<div class="cards-list">
+					{#each availableHazards as h}
+						{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, subtitle: '', icon: 'ℹ️' }}
+						{@const lvl = LEVEL_META[h.level] || LEVEL_META.nema_podataka}
+						<article class="hazard-card tone-border-{lvl.tone}">
+							<div class="card-top">
 								<div>
-									<dt>Povratno razdoblje {rp} god.:</dt>
-									<dd>{val === null || val === undefined ? 'nema podatka' : `${fmt(val)} m`}</dd>
+									<h3><span aria-hidden="true">{meta.icon}</span> {meta.title}</h3>
+									{#if meta.subtitle}
+										<p class="card-sub">{meta.subtitle}</p>
+									{/if}
 								</div>
-							{/each}
-						</dl>
-					{:else if h.detail && h.hazard === 'seismic' && h.detail.ag_g !== undefined}
-						<dl class="detail-grid">
-							<div>
-								<dt>Vršno ubrzanje tla (ag, 475 god.):</dt>
-								<dd><strong>{fmt(h.detail.ag_g)} g</strong></dd>
+								<span class="badge tone-{lvl.tone}">
+									<span aria-hidden="true">{lvl.icon}</span> {lvl.label}
+								</span>
 							</div>
-							{#if h.detail.udaljenost_km !== undefined && h.detail.udaljenost_km !== null}
-								<div>
-									<dt>Udaljenost do točke mreže:</dt>
-									<dd>{fmt(h.detail.udaljenost_km)} km</dd>
-								</div>
-							{/if}
-						</dl>
-					{:else if h.detail && h.detail.podloznost}
-						<dl class="detail-grid">
-							<div>
-								<dt>Razred podložnosti u studiji:</dt>
-								<dd><strong>{h.detail.podloznost}</strong></dd>
-							</div>
-						</dl>
-					{:else if h.detail && h.detail.dubina_do !== undefined}
-						<dl class="detail-grid">
-							<div>
-								<dt>Dubina do podzemne vode:</dt>
-								<dd><strong>{fmt(h.detail.dubina_do)} m</strong></dd>
-							</div>
-							{#if h.detail.udaljenost_m !== undefined && h.detail.udaljenost_m !== null}
-								<div>
-									<dt>Udaljenost bušotine:</dt>
-									<dd>{fmt(h.detail.udaljenost_m)} m</dd>
-								</div>
-							{/if}
-						</dl>
-					{/if}
 
-					{#if h.notes && h.notes.length > 0}
-							<ul class="card-notes">
-								{#each h.notes as note}
-									<li>{note}</li>
-								{/each}
-							</ul>
-						{/if}
+							{#if h.explanation}
+								<p class="card-explanation">{h.explanation}</p>
+							{/if}
 
-						{#if h.source && h.source.title}
-						<footer class="card-source">
-							<span>
-								<strong>Izvor:</strong>
-								{[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
-								{#if h.source.year || h.source.resolution}
-									({[h.source.year, h.source.resolution && `rezolucija: ${h.source.resolution}`]
-										.filter(Boolean)
-										.join(', ')})
-								{/if}
-							</span>
-							{#if h.source.licence}<span><strong>Licenca:</strong> {h.source.licence}</span>{/if}
-							{#if h.source.url && h.source.url !== 'TBD'}
-								<a href={h.source.url} target="_blank" rel="noopener noreferrer">Poveznica na izvor ↗</a>
+							{#if h.detail && h.hazard === 'flood' && h.level !== 'nema_podataka' && h.detail.velika !== undefined}
+								<dl class="detail-grid">
+									<div>
+										<dt>Velika vjerojatnost:</dt>
+										<dd>{FLOOD_DEPTH_TEXT[h.detail.velika] || h.detail.velika || 'nema podatka'}</dd>
+									</div>
+									<div>
+										<dt>Srednja vjerojatnost:</dt>
+										<dd>{FLOOD_DEPTH_TEXT[h.detail.srednja] || h.detail.srednja || 'nema podatka'}</dd>
+									</div>
+									<div>
+										<dt>Mala vjerojatnost:</dt>
+										<dd>{FLOOD_DEPTH_TEXT[h.detail.mala] || h.detail.mala || 'nema podatka'}</dd>
+									</div>
+								</dl>
+							{:else if h.detail && h.hazard === 'flood' && h.detail.rp10 !== undefined}
+								<dl class="detail-grid">
+									{#each [['10', h.detail.rp10], ['100', h.detail.rp100], ['500', h.detail.rp500]] as [rp, val]}
+										<div>
+											<dt>Povratno razdoblje {rp} god.:</dt>
+											<dd>{val === null || val === undefined ? 'nema podatka' : `${fmt(val)} m`}</dd>
+										</div>
+									{/each}
+								</dl>
+							{:else if h.detail && h.hazard === 'seismic' && h.detail.ag_g !== undefined}
+								<dl class="detail-grid">
+									<div>
+										<dt>Vršno ubrzanje tla (ag, 475 god.):</dt>
+										<dd><strong>{fmt(h.detail.ag_g)} g</strong></dd>
+									</div>
+									{#if h.detail.udaljenost_km !== undefined && h.detail.udaljenost_km !== null}
+										<div>
+											<dt>Udaljenost do točke mreže:</dt>
+											<dd>{fmt(h.detail.udaljenost_km)} km</dd>
+										</div>
+									{/if}
+								</dl>
+							{:else if h.detail && h.detail.podloznost}
+								<dl class="detail-grid">
+									<div>
+										<dt>Razred podložnosti u studiji:</dt>
+										<dd><strong>{h.detail.podloznost}</strong></dd>
+									</div>
+								</dl>
+							{:else if h.detail && h.detail.dubina_do !== undefined}
+								<dl class="detail-grid">
+									<div>
+										<dt>Dubina do podzemne vode:</dt>
+										<dd><strong>{fmt(h.detail.dubina_do)} m</strong></dd>
+									</div>
+									{#if h.detail.udaljenost_m !== undefined && h.detail.udaljenost_m !== null}
+										<div>
+											<dt>Udaljenost bušotine:</dt>
+											<dd>{fmt(h.detail.udaljenost_m)} m</dd>
+										</div>
+									{/if}
+								</dl>
 							{/if}
-							{#if h.source.note}
-								<span class="source-note">{h.source.note}</span>
+
+							{#if h.notes && h.notes.length > 0}
+								<ul class="card-notes">
+									{#each h.notes as note}
+										<li>{note}</li>
+									{/each}
+								</ul>
 							{/if}
-						</footer>
-					{/if}
-				</article>
-				{/each}
-			</div>
+
+							{#if h.source && h.source.title}
+								<footer class="card-source">
+									<span>
+										<strong>Izvor:</strong>
+										{[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
+										{#if h.source.year || h.source.resolution}
+											({[h.source.year, h.source.resolution && `rezolucija: ${h.source.resolution}`]
+												.filter(Boolean)
+												.join(', ')})
+										{/if}
+									</span>
+									{#if h.source.licence}<span><strong>Licenca:</strong> {h.source.licence}</span>{/if}
+									{#if h.source.url && h.source.url !== 'TBD'}
+										<a href={h.source.url} target="_blank" rel="noopener noreferrer">Poveznica na izvor ↗</a>
+									{/if}
+									{#if h.source.note}
+										<span class="source-note">{h.source.note}</span>
+									{/if}
+								</footer>
+							{/if}
+						</article>
+					{/each}
+				</div>
+			{:else}
+				<div class="empty-available-card">
+					<p>Za ovu točku trenutno nema utvrđenih podataka u obrađenim slojevima (pogledajte opasnosti bez podataka ispod).</p>
+				</div>
+			{/if}
 
 			{#if report.recommended_actions && report.recommended_actions.length > 0}
 				<section class="actions-section" aria-label="Preporučeni koraci">
@@ -415,6 +433,71 @@
 		{/if}
 	</section>
 </div>
+
+{#if report && noDataHazards.length > 0}
+	<section class="below-section" aria-label="Opasnosti bez dostupnih podataka">
+		<div class="below-header">
+			<span class="eyebrow">Ostale opasnosti</span>
+			<h3>Opasnosti bez dostupnih podataka za ovu točku ({noDataHazards.length})</h3>
+			<p class="below-desc">
+				Za ove opasnosti podaci nisu obuhvatili odabranu točku (npr. lokalizirane studije) ili sloj još nije učitan u sustav.
+			</p>
+		</div>
+
+		<div class="nodata-cards-grid">
+			{#each noDataHazards as h}
+				{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, subtitle: '', icon: 'ℹ️' }}
+				{@const lvl = LEVEL_META[h.level] || LEVEL_META.nema_podataka}
+				<article class="hazard-card tone-border-{lvl.tone}">
+					<div class="card-top">
+						<div>
+							<h4><span aria-hidden="true">{meta.icon}</span> {meta.title}</h4>
+							{#if meta.subtitle}
+								<p class="card-sub">{meta.subtitle}</p>
+							{/if}
+						</div>
+						<span class="badge tone-{lvl.tone}">
+							<span aria-hidden="true">{lvl.icon}</span> {lvl.label}
+						</span>
+					</div>
+
+					{#if h.explanation}
+						<p class="card-explanation">{h.explanation}</p>
+					{/if}
+
+					{#if h.notes && h.notes.length > 0}
+						<ul class="card-notes">
+							{#each h.notes as note}
+								<li>{note}</li>
+							{/each}
+						</ul>
+					{/if}
+
+					{#if h.source && h.source.title}
+						<footer class="card-source">
+							<span>
+								<strong>Izvor:</strong>
+								{[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
+								{#if h.source.year || h.source.resolution}
+									({[h.source.year, h.source.resolution && `rezolucija: ${h.source.resolution}`]
+										.filter(Boolean)
+										.join(', ')})
+								{/if}
+							</span>
+							{#if h.source.licence}<span><strong>Licenca:</strong> {h.source.licence}</span>{/if}
+							{#if h.source.url && h.source.url !== 'TBD'}
+								<a href={h.source.url} target="_blank" rel="noopener noreferrer">Poveznica na izvor ↗</a>
+							{/if}
+							{#if h.source.note}
+								<span class="source-note">{h.source.note}</span>
+							{/if}
+						</footer>
+					{/if}
+				</article>
+			{/each}
+		</div>
+	</section>
+{/if}
 
 <style>
 	.sr-only {
@@ -536,12 +619,12 @@
 	.workspace-grid {
 		display: grid;
 		grid-template-columns: 1fr;
-		gap: 1.25rem;
+		gap: 1.5rem;
 	}
-	@media (min-width: 900px) {
+	@media (min-width: 992px) {
 		.workspace-grid {
-			grid-template-columns: 5fr 7fr;
-			align-items: start;
+			grid-template-columns: minmax(0, 1.4fr) minmax(360px, 1fr);
+			align-items: stretch;
 		}
 	}
 	.map-column {
@@ -549,14 +632,45 @@
 		border: 1px solid var(--border);
 		border-radius: 0.75rem;
 		padding: 0.85rem;
-		position: sticky;
-		top: 1rem;
+	}
+	@media (min-width: 992px) {
+		.map-column {
+			position: sticky;
+			top: 1rem;
+			max-height: calc(100vh - 2rem);
+			overflow-y: auto;
+			display: flex;
+			flex-direction: column;
+			gap: 0.75rem;
+			scrollbar-width: thin;
+			scrollbar-color: #94a3b8 #f1f5f9;
+		}
+		.map-column::-webkit-scrollbar {
+			width: 8px;
+		}
+		.map-column::-webkit-scrollbar-track {
+			background: #f1f5f9;
+			border-radius: 4px;
+		}
+		.map-column::-webkit-scrollbar-thumb {
+			background-color: #94a3b8;
+			border-radius: 4px;
+		}
+		.map-column::-webkit-scrollbar-thumb:hover {
+			background-color: #64748b;
+		}
 	}
 	.map-frame {
 		width: 100%;
-		height: 440px;
+		height: 620px;
+		min-height: 500px;
 		border-radius: 0.5rem;
 		border: 1px solid var(--border);
+	}
+	@media (max-width: 768px) {
+		.map-frame {
+			height: 420px;
+		}
 	}
 	.map-hint {
 		margin: 0.5rem 0 0 0;
@@ -794,5 +908,41 @@
 		background: var(--high-bg);
 		border-color: var(--high-border);
 		color: var(--high-text);
+	}
+	.empty-available-card {
+		background: #f8fafc;
+		border: 1px dashed var(--border);
+		border-radius: 0.65rem;
+		padding: 1rem;
+		color: var(--muted);
+		font-size: 0.92rem;
+	}
+	.empty-available-card p {
+		margin: 0;
+	}
+	.below-section {
+		margin-top: 2rem;
+		padding-top: 1.5rem;
+		border-top: 2px solid var(--border);
+	}
+	.below-header {
+		margin-bottom: 1rem;
+	}
+	.below-header h3 {
+		margin: 0.2rem 0 0.35rem 0;
+		font-size: 1.25rem;
+	}
+	.below-desc {
+		margin: 0;
+		color: var(--muted);
+		font-size: 0.92rem;
+	}
+	.nodata-cards-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+		gap: 1rem;
+	}
+	.nodata-cards-grid .hazard-card {
+		background: #ffffff;
 	}
 </style>
