@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { MAP_LEGEND, MAP_UNAVAILABLE } from '$lib/labels.js';
 
-	let { map } = $props();
+	let { map, requestedLayer = null } = $props();
 
 	const HV_MIN_ZOOM = 12;
 	const HV_MAX_ZOOM = 15;
@@ -40,6 +40,26 @@
 		map.on('zoom', onZoom);
 		mapZoom = map.getZoom();
 		return () => map.off('zoom', onZoom);
+	});
+
+	$effect(() => {
+		if (!map || !requestedLayer || !requestedLayer.key) return;
+		const key = requestedLayer.key;
+		if (key === 'flood_hv' || key === 'flood') {
+			showHv = true;
+			updateHv();
+		} else if (key === 'flood_efas') {
+			showEfas = true;
+			updateEfas();
+		} else if (key === 'landslide' || key === 'liquefaction' || key === 'sinkhole') {
+			showGeo = true;
+			geoLayer = key;
+			updateGeo();
+		} else if (key === 'unfavourable') {
+			showGeo = true;
+			showUnf = true;
+			updateGeo();
+		}
 	});
 
 	function attr(key) {

@@ -3,6 +3,8 @@
 	import maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import MapLayers from '$lib/MapLayers.svelte';
+	import NLQueryBox from '$lib/NLQueryBox.svelte';
+	import ReportAssistant from '$lib/ReportAssistant.svelte';
 	import { HAZARD_META, LEVEL_META, FLOOD_DEPTH_TEXT, PRESET_LOCATIONS, fmt } from '$lib/labels.js';
 
 	let searchQuery = $state('');
@@ -16,6 +18,9 @@
 	let report = $state(null);
 	let loading = $state(false);
 	let errorMsg = $state('');
+	let requestedLayer = $state(null);
+	let activeH3Tier = $state('base');
+	let layerSeq = 0;
 
 	let availableHazards = $derived(
 		report && Array.isArray(report.hazards)
@@ -53,7 +58,7 @@
 	// Only the most recent fetchReport call may change report/errorMsg/loading.
 	let reqId = 0;
 
-	async function fetchReport(targetLat, targetLon, labelText = '') {
+	async function fetchReport(targetLat, targetLon, labelText = '', flyToPoint = true) {
 		const id = ++reqId;
 		lat = Number(targetLat.toFixed(5));
 		lon = Number(targetLon.toFixed(5));
@@ -64,7 +69,9 @@
 		errorMsg = '';
 		if (map && marker) {
 			marker.setLngLat([lon, lat]);
-			map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13), essential: true });
+			if (flyToPoint) {
+				map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13), essential: true });
+			}
 		}
 		try {
 			const res = await fetch(`/api/report?lat=${lat}&lon=${lon}`);
@@ -129,6 +136,154 @@
 		fetchReport(preset.lat, preset.lon, preset.name);
 	}
 
+	function handleSelectRegion(center, regionName) {
+		if (!center) return;
+		const label = regionName
+			? `Područje: ${regionName.charAt(0).toUpperCase() + regionName.slice(1)}`
+			: 'Odabrano područje';
+		const hasGrid = Boolean(map && map.getSource('nl-search-grid'));
+		fetchReport(center.lat, center.lon, label, false);
+		if (map && center.zoom && !hasGrid) {
+			map.flyTo({ center: [center.lon, center.lat], zoom: center.zoom, essential: true });
+		}
+	}
+
+	function getH3TierForZoom(zoom) {
+		if (zoom < 11.2) return 'coarse';
+		if (zoom < 12.6) return 'medium';
+		if (zoom < 14.1) return 'base';
+		return 'fine';
+	}
+
+	function syncH3TierFilter(force = false) {
+		if (!map) return;
+		const nextTier = getH3TierForZoom(map.getZoom());
+		if (!force && nextTier === activeH3Tier) return;
+		activeH3Tier = nextTier;
+		const tierFilter = ['==', ['get', 'tier'], nextTier];
+		if (map.getLayer('nl-search-grid-fill')) {
+			map.setFilter('nl-search-grid-fill', tierFilter);
+		}
+		if (map.getLayer('nl-search-grid-line')) {
+			map.setFilter('nl-search-grid-line', tierFilter);
+		}
+	}
+
+	function handleUpdateSearchGrid(gridGeoJson, options = {}) {
+		if (!map) return;
+		const sourceId = 'nl-search-grid';
+		const fillLayerId = 'nl-search-grid-fill';
+		const lineLayerId = 'nl-search-grid-line';
+
+		if (!gridGeoJson || !Array.isArray(gridGeoJson.features) || gridGeoJson.features.length === 0) {
+			if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
+			if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
+			if (map.getSource(sourceId)) map.removeSource(sourceId);
+			return;
+		}
+
+		const showExcluded = options.showExcluded !== false;
+		const filteredFeatures = showExcluded
+			? gridGeoJson.features
+			: gridGeoJson.features.filter((f) => f.properties && f.properties.matched);
+
+		const displayCollection = {
+			type: 'FeatureCollection',
+			features: filteredFeatures
+		};
+
+		activeH3Tier = getH3TierForZoom(map.getZoom());
+		const tierFilter = ['==', ['get', 'tier'], activeH3Tier];
+
+		const existingSource = map.getSource(sourceId);
+		if (existingSource) {
+			existingSource.setData(displayCollection);
+			syncH3TierFilter(true);
+		} else {
+			map.addSource(sourceId, {
+				type: 'geojson',
+				data: displayCollection
+			});
+			map.addLayer({
+				id: fillLayerId,
+				type: 'fill',
+				source: sourceId,
+				filter: tierFilter,
+				paint: {
+					'fill-color': [
+						'case',
+						['boolean', ['get', 'matched'], false],
+						'#16a34a',
+						'#dc2626'
+					],
+					'fill-opacity': [
+						'case',
+						['boolean', ['get', 'matched'], false],
+						0.36,
+						0.16
+					]
+				}
+			});
+			map.addLayer({
+				id: lineLayerId,
+				type: 'line',
+				source: sourceId,
+				filter: tierFilter,
+				paint: {
+					'line-color': [
+						'case',
+						['boolean', ['get', 'matched'], false],
+						'#15803d',
+						'#b91c1c'
+					],
+					'line-width': [
+						'case',
+						['boolean', ['get', 'matched'], false],
+						1.6,
+						0.8
+					],
+					'line-opacity': 0.85
+				}
+			});
+		}
+
+		if (options.fitBounds && gridGeoJson.summary && Array.isArray(gridGeoJson.summary.bbox)) {
+			const [w, s, e, n] = gridGeoJson.summary.bbox;
+			if (w < e && s < n) {
+				map.fitBounds(
+					[
+						[w, s],
+						[e, n]
+					],
+					{ padding: 48, maxZoom: 13.5, duration: 900 }
+				);
+			}
+		}
+	}
+
+	function handleActivateLayer(layerKey) {
+		requestedLayer = { key: layerKey, seq: ++layerSeq };
+	}
+
+	async function handleSearchLocationText(locText) {
+		searchQuery = locText;
+		try {
+			const res = await fetch(`/api/addresses?q=${encodeURIComponent(locText)}&limit=5`);
+			if (res.ok) {
+				const data = await res.json();
+				if (data.results && data.results.length > 0) {
+					selectAddress(data.results[0]);
+					return;
+				}
+			}
+		} catch {
+			/* fallback to preset match */
+		}
+		const lower = locText.toLowerCase();
+		const match = PRESET_LOCATIONS.find((p) => lower.includes(p.name.toLowerCase()));
+		if (match) selectPreset(match);
+	}
+
 	onMount(() => {
 		map = new maplibregl.Map({
 			container: mapContainer,
@@ -161,6 +316,10 @@
 			fetchReport(cLat, cLon, `Odabrana točka na karti (${fmt(cLat, 4)}; ${fmt(cLon, 4)})`);
 		});
 
+		map.on('zoom', () => {
+			syncH3TierFilter(false);
+		});
+
 		map.once('style.load', () => {
 			mapObj = map;
 		});
@@ -173,7 +332,7 @@
 	<div class="search-header">
 		<h1>Provjerite izloženost lokacije poplavama, potresu i geohazardima</h1>
 		<p>
-			Unesite adresu u Hrvatskoj (iz službenog registra DGU Adrese INSPIRE) ili kliknite izravno na kartu.
+			Unesite adresu u Hrvatskoj (iz službenog registra DGU Adrese INSPIRE), kliknite na kartu ili pretražujte prirodnim jezikom.
 		</p>
 	</div>
 
@@ -231,12 +390,20 @@
 			</button>
 		{/each}
 	</div>
+
+	<NLQueryBox
+		onSelectRegion={handleSelectRegion}
+		onActivateLayer={handleActivateLayer}
+		onSearchLocationText={handleSearchLocationText}
+		onUpdateSearchGrid={handleUpdateSearchGrid}
+		{activeH3Tier}
+	/>
 </section>
 
 <div class="workspace-grid">
 	<section class="map-column no-print" aria-label="Interaktivna karta" bind:this={mapColumnEl}>
 		<div class="map-frame" bind:this={mapContainer}></div>
-		<MapLayers map={mapObj} />
+		<MapLayers map={mapObj} {requestedLayer} />
 		<p class="map-hint">
 			Savjet: Kliknite bilo gdje na kartu unutar Republike Hrvatske za izračun izvještaja za tu točku.
 		</p>
@@ -446,6 +613,8 @@
 					</div>
 				</div>
 			{/if}
+
+			<ReportAssistant {report} />
 
 			{#if report.recommended_actions && report.recommended_actions.length > 0}
 				<section class="actions-section" aria-label="Preporučeni koraci">

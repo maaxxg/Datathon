@@ -1,4 +1,4 @@
-"""Geo-rizik API (vertical prototype: HV floods + EFAS fallback + Banovina geohazards + ESHM20 seismic + address geocoder + template explanations)."""
+"""Geo-rizik API (vertical prototype: HV floods + EFAS fallback + Banovina geohazards + ESHM20 seismic + address geocoder + template & Ollama LLM explanations/queries + H3 grid)."""
 from __future__ import annotations
 
 import mimetypes
@@ -10,11 +10,15 @@ from pathlib import Path
 import yaml
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 from .efas_flood import EFASFloodReader
 from .geocoder import AddressGeocoder
 from .geohazards import SUSCEPTIBILITY_LAYERS, Geohazards, in_banovina
+from .h3_grid import evaluate_region_grid
 from .hv_flood import HVFloodClient
+from .llm import OllamaClient
+from .query_schema import ParsedQuery, validate_against_catalogue
 from .risk_rules import (
     HazardResult, Level, combine_flood, flood_efas_level, flood_hv_level, groundwater_level,
     most_significant, seismic_level, susceptibility_level, unfavourable_level,
@@ -42,10 +46,12 @@ async def lifespan(_: FastAPI):
     state["geo"] = Geohazards(DATA_DIR / "geohazards")
     state["seismic"] = SeismicReader(DATA_DIR / "seismic" / "eshm20_pga475.json")
     state["geocoder"] = AddressGeocoder(DATA_DIR / "addresses.sqlite")
+    state["llm"] = OllamaClient()
     yield
     state["efas"].close()
     state["geocoder"].close()
     await state["hv"].aclose()
+    await state["llm"].aclose()
 
 
 app = FastAPI(title="Geo-rizik API", version="0.1.0", lifespan=lifespan)
@@ -73,6 +79,7 @@ def map_layers_loaded() -> bool:
 
 @app.get("/api/health")
 async def health() -> dict:
+    llm: OllamaClient | None = state.get("llm")
     return {
         "status": "ok",
         "geohazards_loaded": state["geo"].available(),
@@ -80,6 +87,7 @@ async def health() -> dict:
         "seismic_loaded": state["seismic"].available(),
         "efas_loaded": state["efas"].available(),
         "map_layers_loaded": map_layers_loaded(),
+        "llm_model": llm.model if llm else None,
     }
 
 
@@ -133,6 +141,68 @@ async def report(lat: float = Query(..., ge=-90, le=90), lon: float = Query(...,
         "recommended_actions": recommended_actions(results),
         "disclaimer": DISCLAIMER,
     }
+
+
+class NLQueryRequest(BaseModel):
+    text: str = Field(..., min_length=2, max_length=500)
+
+
+class ReportExplainRequest(BaseModel):
+    report: dict
+
+
+class ReportAskRequest(BaseModel):
+    question: str = Field(..., min_length=2, max_length=400)
+    report: dict
+
+
+def _compute_grid_for_validated(validated: dict) -> dict | None:
+    return evaluate_region_grid(
+        validated,
+        efas=state.get("efas"),
+        geo=state.get("geo"),
+        seismic=state.get("seismic"),
+        geocoder=state.get("geocoder"),
+    )
+
+
+@app.post("/api/query")
+async def nl_query(req: NLQueryRequest) -> dict:
+    llm: OllamaClient = state.get("llm") or OllamaClient()
+    parsed, llm_used = await llm.parse_query(req.text)
+    validated = validate_against_catalogue(parsed, CATALOGUE)
+    grid = _compute_grid_for_validated(validated)
+    return {
+        "query": req.text.strip(),
+        "parsed": parsed.model_dump(mode="json"),
+        "validated": validated,
+        "grid": grid,
+        "llm_used": llm_used,
+        "model": llm.model if llm_used else "predložak (pravila)",
+    }
+
+
+@app.post("/api/query/validate")
+async def validate_query_endpoint(query: ParsedQuery) -> dict:
+    validated = validate_against_catalogue(query, CATALOGUE)
+    validated["grid"] = _compute_grid_for_validated(validated)
+    return validated
+
+
+@app.post("/api/report/explain")
+async def explain_report_endpoint(req: ReportExplainRequest) -> dict:
+    if not isinstance(req.report.get("hazards"), list):
+        raise HTTPException(422, "Neispravan format izvještaja.")
+    llm: OllamaClient = state.get("llm") or OllamaClient()
+    return await llm.explain_report(req.report)
+
+
+@app.post("/api/report/ask")
+async def ask_report_endpoint(req: ReportAskRequest) -> dict:
+    if not isinstance(req.report.get("hazards"), list):
+        raise HTTPException(422, "Neispravan format izvještaja.")
+    llm: OllamaClient = state.get("llm") or OllamaClient()
+    return await llm.ask_report(req.question, req.report)
 
 
 # Display-only map layers built by pipeline/build_map_layers.py; whole-file fetches, no coordinates.
