@@ -85,6 +85,24 @@ def _extract_region(text_lower: str) -> str | None:
     return None
 
 
+def _extract_unsupported(tl: str) -> list[str]:
+    unsupported_hits: list[tuple[int, str]] = []
+    unsupported_patterns = [
+        (r"cijen\w*|kvadrat\w*|eur\w*", "cijene nekretnina"),
+        (r"\bbuk\w*", "buka"),
+        (r"požar\w*", "požari"),
+        (r"kvalitet\w*\s+zrak\w*|\bzrak\w*", "kvaliteta zraka"),
+        (r"osnovn\w*\s+škol\w*|\bškol\w*", "udaljenost od osnovne škole"),
+        (r"nagib\w*\s+teren\w*", "nagib terena"),
+    ]
+    for pat, label in unsupported_patterns:
+        m_u = re.search(pat, tl)
+        if m_u:
+            unsupported_hits.append((m_u.start(), label))
+    unsupported_hits.sort(key=lambda pair: pair[0])
+    return [lbl for _, lbl in unsupported_hits]
+
+
 def _normalize_compared_location(raw: str) -> str:
     """Turn inflected Croatian street + city phrases into 'Nominative Street, City'."""
     s = raw.strip().rstrip(".?,!")
@@ -222,23 +240,7 @@ def fallback_parse_nl_query(text: str) -> ParsedQuery:
 
     filter_hits.sort(key=lambda pair: pair[0])
     filters = [f for _, f in filter_hits]
-
-    # Unsupported criteria extraction
-    unsupported_hits: list[tuple[int, str]] = []
-    unsupported_patterns = [
-        (r"cijen\w*|kvadrat\w*|eur\w*", "cijene nekretnina"),
-        (r"\bbuk\w*", "buka"),
-        (r"požar\w*", "požari"),
-        (r"kvalitet\w*\s+zrak\w*|\bzrak\w*", "kvaliteta zraka"),
-        (r"osnovn\w*\s+škol\w*|\bškol\w*", "udaljenost od osnovne škole"),
-        (r"nagib\w*\s+teren\w*", "nagib terena"),
-    ]
-    for pat, label in unsupported_patterns:
-        m_u = re.search(pat, tl)
-        if m_u:
-            unsupported_hits.append((m_u.start(), label))
-    unsupported_hits.sort(key=lambda pair: pair[0])
-    unsupported = [lbl for _, lbl in unsupported_hits]
+    unsupported = _extract_unsupported(tl)
 
     return ParsedQuery(
         intent=Intent.FIND_AREA,
@@ -429,6 +431,7 @@ class OllamaClient:
         self.base_url = (base_url or os.environ.get("OLLAMA_URL") or DEFAULT_OLLAMA_URL).rstrip("/")
         self.model = model or os.environ.get("OLLAMA_MODEL") or DEFAULT_OLLAMA_MODEL
         self.timeout = timeout if timeout is not None else float(os.environ.get("OLLAMA_TIMEOUT", DEFAULT_OLLAMA_TIMEOUT))
+        self.last_error: str | None = None
         self._client: httpx.AsyncClient | None = client
 
     def _get_client(self) -> httpx.AsyncClient:
@@ -478,7 +481,8 @@ class OllamaClient:
                 if u not in parsed.unsupported:
                     parsed.unsupported.append(u)
             return parsed, True
-        except Exception:
+        except Exception as exc:
+            self.last_error = f"{type(exc).__name__}: {exc}"
             return fallback_parse_nl_query(text), False
 
     async def explain_report(self, report_data: dict) -> dict:
@@ -512,7 +516,8 @@ class OllamaClient:
                 "llm_used": True,
                 "model": self.model,
             }
-        except Exception:
+        except Exception as exc:
+            self.last_error = f"{type(exc).__name__}: {exc}"
             return {
                 "explanation": fallback_explain_report(report_data),
                 "llm_used": False,
@@ -552,7 +557,8 @@ class OllamaClient:
                 "llm_used": True,
                 "model": self.model,
             }
-        except Exception:
+        except Exception as exc:
+            self.last_error = f"{type(exc).__name__}: {exc}"
             return {
                 "answer": fallback_answer_report_question(question, report_data),
                 "llm_used": False,

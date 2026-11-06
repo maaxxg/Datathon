@@ -10,13 +10,14 @@ import h3
 
 from app.h3_grid import evaluate_region_grid
 from app.llm import (
+    _extract_unsupported,
     fallback_answer_report_question,
     fallback_explain_report,
     fallback_parse_nl_query,
     sanitize_report_for_llm,
 )
 from app.main import CATALOGUE
-from app.query_schema import validate_against_catalogue
+from app.query_schema import ParsedQuery, validate_against_catalogue
 
 TESTSET = yaml.safe_load((Path(__file__).resolve().parents[1] / "app" / "nl_testset.yaml").read_text(encoding="utf-8"))
 
@@ -181,3 +182,15 @@ def test_evaluate_region_grid_hex_geometry_and_filtering():
     parsed_layer = fallback_parse_nl_query("Prikaži sloj klizišta na Banovini.")
     val_layer = validate_against_catalogue(parsed_layer, CATALOGUE)
     assert evaluate_region_grid(val_layer) is None
+
+
+def test_ollama_partial_json_and_extract_unsupported():
+    raw_ollama_json = json.dumps({
+        "intent": "find_area",
+        "region": "petrinja",
+        "filters": [{"hazard": "flood", "max_level": "nema_prema_karti"}],
+    })
+    parsed = ParsedQuery.model_validate_json(raw_ollama_json)
+    assert parsed.intent.value == "find_area"
+    assert parsed.region == "petrinja"
+    assert _extract_unsupported("pronađi područja u petrinji bez poplava i cijena kvadrata") == ["cijene nekretnina"]
