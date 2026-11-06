@@ -1,37 +1,44 @@
 <script>
-	import { onMount } from 'svelte';
-	import maplibregl from 'maplibre-gl';
-	import 'maplibre-gl/dist/maplibre-gl.css';
-	import MapLayers from '$lib/MapLayers.svelte';
-	import NLQueryBox from '$lib/NLQueryBox.svelte';
-	import ReportAssistant from '$lib/ReportAssistant.svelte';
-	import { HAZARD_META, LEVEL_META, FLOOD_DEPTH_TEXT, PRESET_LOCATIONS, fmt, dms } from '$lib/labels.js';
+	import { onMount } from "svelte";
+	import maplibregl from "maplibre-gl";
+	import "maplibre-gl/dist/maplibre-gl.css";
+	import MapLayers from "$lib/MapLayers.svelte";
+	import NLQueryBox from "$lib/NLQueryBox.svelte";
+	import ReportAssistant from "$lib/ReportAssistant.svelte";
+	import {
+		HAZARD_META,
+		LEVEL_META,
+		FLOOD_DEPTH_TEXT,
+		PRESET_LOCATIONS,
+		fmt,
+		dms,
+	} from "$lib/labels.js";
 
-	let searchQuery = $state('');
+	let searchQuery = $state("");
 	let suggestions = $state([]);
 	let geocoderAvailable = $state(true);
 	let showSuggestions = $state(false);
-	let selectedLabel = $state('Petrinja');
+	let selectedLabel = $state("Petrinja");
 	let lat = $state(45.4375);
 	let lon = $state(16.2739);
 
 	let report = $state(null);
 	let loading = $state(false);
-	let errorMsg = $state('');
+	let errorMsg = $state("");
 	let requestedLayer = $state(null);
-	let activeH3Tier = $state('base');
+	let activeH3Tier = $state("base");
 	let layerSeq = 0;
 
 	let availableHazards = $derived(
 		report && Array.isArray(report.hazards)
-			? report.hazards.filter((h) => h.level !== 'nema_podataka')
-			: []
+			? report.hazards.filter((h) => h.level !== "nema_podataka")
+			: [],
 	);
 
 	let noDataHazards = $derived(
 		report && Array.isArray(report.hazards)
-			? report.hazards.filter((h) => h.level === 'nema_podataka')
-			: []
+			? report.hazards.filter((h) => h.level === "nema_podataka")
+			: [],
 	);
 
 	let mapObj = $state(null);
@@ -44,7 +51,12 @@
 	// Only the most recent fetchReport call may change report/errorMsg/loading.
 	let reqId = 0;
 
-	async function fetchReport(targetLat, targetLon, labelText = '', flyToPoint = true) {
+	async function fetchReport(
+		targetLat,
+		targetLon,
+		labelText = "",
+		flyToPoint = true,
+	) {
 		const id = ++reqId;
 		lat = Number(targetLat.toFixed(5));
 		lon = Number(targetLon.toFixed(5));
@@ -52,11 +64,15 @@
 			selectedLabel = labelText;
 		}
 		loading = true;
-		errorMsg = '';
+		errorMsg = "";
 		if (map && marker) {
 			marker.setLngLat([lon, lat]);
 			if (flyToPoint) {
-				map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13), essential: true });
+				map.flyTo({
+					center: [lon, lat],
+					zoom: Math.max(map.getZoom(), 13),
+					essential: true,
+				});
 			}
 		}
 		try {
@@ -65,11 +81,12 @@
 			if (!res.ok) {
 				const body = await res.json().catch(() => ({}));
 				if (id !== reqId) return;
-				if (Array.isArray(body.detail)) throw new Error('Neispravna lokacija.');
+				if (Array.isArray(body.detail))
+					throw new Error("Neispravna lokacija.");
 				throw new Error(
-					typeof body.detail === 'string' && body.detail
+					typeof body.detail === "string" && body.detail
 						? body.detail
-						: `Greška poslužitelja (${res.status})`
+						: `Greška poslužitelja (${res.status})`,
 				);
 			}
 			const data = await res.json();
@@ -77,7 +94,7 @@
 			report = data;
 		} catch (err) {
 			if (id !== reqId) return;
-			errorMsg = err.message || 'Nije moguće dohvatiti izvještaj.';
+			errorMsg = err.message || "Nije moguće dohvatiti izvještaj.";
 		} finally {
 			if (id === reqId) loading = false;
 		}
@@ -93,7 +110,9 @@
 		}
 		debounceTimer = setTimeout(async () => {
 			try {
-				const res = await fetch(`/api/addresses?q=${encodeURIComponent(searchQuery)}&limit=8`);
+				const res = await fetch(
+					`/api/addresses?q=${encodeURIComponent(searchQuery)}&limit=8`,
+				);
 				if (!res.ok) {
 					geocoderAvailable = false;
 					return;
@@ -126,19 +145,23 @@
 		if (!center) return;
 		const label = regionName
 			? `Područje: ${regionName.charAt(0).toUpperCase() + regionName.slice(1)}`
-			: 'Odabrano područje';
-		const hasGrid = Boolean(map && map.getSource('nl-search-grid'));
+			: "Odabrano područje";
+		const hasGrid = Boolean(map && map.getSource("nl-search-grid"));
 		fetchReport(center.lat, center.lon, label, false);
 		if (map && center.zoom && !hasGrid) {
-			map.flyTo({ center: [center.lon, center.lat], zoom: center.zoom, essential: true });
+			map.flyTo({
+				center: [center.lon, center.lat],
+				zoom: center.zoom,
+				essential: true,
+			});
 		}
 	}
 
 	function getH3TierForZoom(zoom) {
-		if (zoom < 11.2) return 'coarse';
-		if (zoom < 12.6) return 'medium';
-		if (zoom < 14.1) return 'base';
-		return 'fine';
+		if (zoom < 11.2) return "coarse";
+		if (zoom < 12.6) return "medium";
+		if (zoom < 14.1) return "base";
+		return "fine";
 	}
 
 	function syncH3TierFilter(force = false) {
@@ -146,22 +169,26 @@
 		const nextTier = getH3TierForZoom(map.getZoom());
 		if (!force && nextTier === activeH3Tier) return;
 		activeH3Tier = nextTier;
-		const tierFilter = ['==', ['get', 'tier'], nextTier];
-		if (map.getLayer('nl-search-grid-fill')) {
-			map.setFilter('nl-search-grid-fill', tierFilter);
+		const tierFilter = ["==", ["get", "tier"], nextTier];
+		if (map.getLayer("nl-search-grid-fill")) {
+			map.setFilter("nl-search-grid-fill", tierFilter);
 		}
-		if (map.getLayer('nl-search-grid-line')) {
-			map.setFilter('nl-search-grid-line', tierFilter);
+		if (map.getLayer("nl-search-grid-line")) {
+			map.setFilter("nl-search-grid-line", tierFilter);
 		}
 	}
 
 	function handleUpdateSearchGrid(gridGeoJson, options = {}) {
 		if (!map) return;
-		const sourceId = 'nl-search-grid';
-		const fillLayerId = 'nl-search-grid-fill';
-		const lineLayerId = 'nl-search-grid-line';
+		const sourceId = "nl-search-grid";
+		const fillLayerId = "nl-search-grid-fill";
+		const lineLayerId = "nl-search-grid-line";
 
-		if (!gridGeoJson || !Array.isArray(gridGeoJson.features) || gridGeoJson.features.length === 0) {
+		if (
+			!gridGeoJson ||
+			!Array.isArray(gridGeoJson.features) ||
+			gridGeoJson.features.length === 0
+		) {
 			if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
 			if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
 			if (map.getSource(sourceId)) map.removeSource(sourceId);
@@ -171,15 +198,17 @@
 		const showExcluded = options.showExcluded !== false;
 		const filteredFeatures = showExcluded
 			? gridGeoJson.features
-			: gridGeoJson.features.filter((f) => f.properties && f.properties.matched);
+			: gridGeoJson.features.filter(
+					(f) => f.properties && f.properties.matched,
+				);
 
 		const displayCollection = {
-			type: 'FeatureCollection',
-			features: filteredFeatures
+			type: "FeatureCollection",
+			features: filteredFeatures,
 		};
 
 		activeH3Tier = getH3TierForZoom(map.getZoom());
-		const tierFilter = ['==', ['get', 'tier'], activeH3Tier];
+		const tierFilter = ["==", ["get", "tier"], activeH3Tier];
 
 		const existingSource = map.getSource(sourceId);
 		if (existingSource) {
@@ -187,61 +216,65 @@
 			syncH3TierFilter(true);
 		} else {
 			map.addSource(sourceId, {
-				type: 'geojson',
-				data: displayCollection
+				type: "geojson",
+				data: displayCollection,
 			});
 			map.addLayer({
 				id: fillLayerId,
-				type: 'fill',
+				type: "fill",
 				source: sourceId,
 				filter: tierFilter,
 				paint: {
-					'fill-color': [
-						'case',
-						['boolean', ['get', 'matched'], false],
-						'#4d6b22',
-						'#9e2a14'
+					"fill-color": [
+						"case",
+						["boolean", ["get", "matched"], false],
+						"#4d6b22",
+						"#9e2a14",
 					],
-					'fill-opacity': [
-						'case',
-						['boolean', ['get', 'matched'], false],
+					"fill-opacity": [
+						"case",
+						["boolean", ["get", "matched"], false],
 						0.36,
-						0.16
-					]
-				}
+						0.16,
+					],
+				},
 			});
 			map.addLayer({
 				id: lineLayerId,
-				type: 'line',
+				type: "line",
 				source: sourceId,
 				filter: tierFilter,
 				paint: {
-					'line-color': [
-						'case',
-						['boolean', ['get', 'matched'], false],
-						'#3a5219',
-						'#7d200f'
+					"line-color": [
+						"case",
+						["boolean", ["get", "matched"], false],
+						"#3a5219",
+						"#7d200f",
 					],
-					'line-width': [
-						'case',
-						['boolean', ['get', 'matched'], false],
+					"line-width": [
+						"case",
+						["boolean", ["get", "matched"], false],
 						1.6,
-						0.8
+						0.8,
 					],
-					'line-opacity': 0.85
-				}
+					"line-opacity": 0.85,
+				},
 			});
 		}
 
-		if (options.fitBounds && gridGeoJson.summary && Array.isArray(gridGeoJson.summary.bbox)) {
+		if (
+			options.fitBounds &&
+			gridGeoJson.summary &&
+			Array.isArray(gridGeoJson.summary.bbox)
+		) {
 			const [w, s, e, n] = gridGeoJson.summary.bbox;
 			if (w < e && s < n) {
 				map.fitBounds(
 					[
 						[w, s],
-						[e, n]
+						[e, n],
 					],
-					{ padding: 48, maxZoom: 13.5, duration: 900 }
+					{ padding: 48, maxZoom: 13.5, duration: 900 },
 				);
 			}
 		}
@@ -254,7 +287,9 @@
 	async function handleSearchLocationText(locText) {
 		searchQuery = locText;
 		try {
-			const res = await fetch(`/api/addresses?q=${encodeURIComponent(locText)}&limit=5`);
+			const res = await fetch(
+				`/api/addresses?q=${encodeURIComponent(locText)}&limit=5`,
+			);
 			if (res.ok) {
 				const data = await res.json();
 				if (data.results && data.results.length > 0) {
@@ -266,7 +301,9 @@
 			/* fallback to preset match */
 		}
 		const lower = locText.toLowerCase();
-		const match = PRESET_LOCATIONS.find((p) => lower.includes(p.name.toLowerCase()));
+		const match = PRESET_LOCATIONS.find((p) =>
+			lower.includes(p.name.toLowerCase()),
+		);
 		if (match) selectPreset(match);
 	}
 
@@ -277,36 +314,44 @@
 				version: 8,
 				sources: {
 					osm: {
-						type: 'raster',
-						tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+						type: "raster",
+						tiles: [
+							"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+						],
 						tileSize: 256,
 						attribution:
-							'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
-					}
+							'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>',
+					},
 				},
-				layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
+				layers: [{ id: "osm", type: "raster", source: "osm" }],
 			},
 			center: [lon, lat],
-			zoom: 12
+			zoom: 12,
 		});
-		map.addControl(new maplibregl.NavigationControl(), 'top-right');
+		map.addControl(new maplibregl.NavigationControl(), "top-right");
 
-		marker = new maplibregl.Marker({ color: '#b0401b' }).setLngLat([lon, lat]).addTo(map);
+		marker = new maplibregl.Marker({ color: "#b0401b" })
+			.setLngLat([lon, lat])
+			.addTo(map);
 		const markerEl = marker.getElement();
-		markerEl.setAttribute('role', 'img');
-		markerEl.setAttribute('aria-label', 'Odabrana lokacija');
+		markerEl.setAttribute("role", "img");
+		markerEl.setAttribute("aria-label", "Odabrana lokacija");
 
-		map.on('click', (e) => {
+		map.on("click", (e) => {
 			const cLat = e.lngLat.lat;
 			const cLon = e.lngLat.lng;
-			fetchReport(cLat, cLon, `Odabrana točka na karti (${fmt(cLat, 4)}; ${fmt(cLon, 4)})`);
+			fetchReport(
+				cLat,
+				cLon,
+				`Odabrana točka na karti (${fmt(cLat, 4)}; ${fmt(cLon, 4)})`,
+			);
 		});
 
-		map.on('zoom', () => {
+		map.on("zoom", () => {
 			syncH3TierFilter(false);
 		});
 
-		map.once('style.load', () => {
+		map.once("style.load", () => {
 			mapObj = map;
 		});
 
@@ -317,29 +362,88 @@
 <section class="hero no-print" aria-label="Pretraga lokacije">
 	<div class="hero-copy">
 		<p class="label">List 01 — Izvještaj po lokaciji</p>
-		<h1>Provjerite izloženost lokacije poplavama, potresu i geohazardima</h1>
+		<h1>
+			Provjerite izloženost lokacije poplavama, potresu i geohazardima
+		</h1>
 		<p class="hero-lede">
-			Unesite adresu u Hrvatskoj (iz službenog registra DGU Adrese INSPIRE), kliknite na kartu ili pretražujte područja prirodnim jezikom.
+			Unesite adresu u Hrvatskoj (iz službenog registra DGU Adrese
+			INSPIRE), kliknite na kartu ili pretražujte područja prirodnim
+			jezikom.
 		</p>
 	</div>
 
-	<div class="search-box-wrap">
-		<label for="address-input" class="label search-label">Adresa ili naselje</label>
+	<div class="search-card">
+		<div class="search-card-header">
+			<label for="address-input" class="search-label">
+				<span class="search-icon-badge" aria-hidden="true">
+					<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+						<circle cx="12" cy="10" r="3" />
+					</svg>
+				</span>
+				<span class="search-label-title">Adresa ili naselje</span>
+				<span class="search-badge">DGU Registar</span>
+			</label>
+			<button
+				type="button"
+				class="btn btn-ghost btn-print"
+				disabled={loading || !report || !!errorMsg}
+				onclick={() => window.print()}
+				title="Ispiši ili spremi izvještaj kao PDF"
+			>
+				<svg
+					viewBox="0 0 20 20"
+					width="14"
+					height="14"
+					aria-hidden="true"
+				>
+					<path
+						d="M5 7V2h10v5M5 15H2V8h16v7h-3M5 12h10v6H5z"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.6"
+					/>
+				</svg>
+				Ispis / PDF
+			</button>
+		</div>
+
 		<div class="search-input-row">
 			<div class="input-anchor">
-			<input
-				id="address-input"
-				class="field field-lg"
-				type="search"
-				placeholder="Ulica, kućni broj, naselje"
-				value={searchQuery}
-				oninput={onSearchInput}
-				onkeydown={(e) => {
-					if (e.key === 'Escape') showSuggestions = false;
-				}}
-				onfocus={() => (showSuggestions = suggestions.length > 0)}
-				autocomplete="off"
-			/>
+				<span class="input-leading-icon" aria-hidden="true">
+					<svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+						<circle cx="8.5" cy="8.5" r="5.5" />
+						<line x1="12.5" y1="12.5" x2="17" y2="17" />
+					</svg>
+				</span>
+				<input
+					id="address-input"
+					class="field field-lg with-leading-icon"
+					type="search"
+					placeholder="Upišite ulicu, kućni broj, naselje..."
+					value={searchQuery}
+					oninput={onSearchInput}
+					onkeydown={(e) => {
+						if (e.key === "Escape") showSuggestions = false;
+					}}
+					onfocus={() => (showSuggestions = suggestions.length > 0)}
+					autocomplete="off"
+				/>
+				{#if searchQuery}
+					<button
+						type="button"
+						class="clear-input-btn"
+						onclick={() => {
+							searchQuery = '';
+							suggestions = [];
+							showSuggestions = false;
+						}}
+						aria-label="Očisti unos"
+						title="Očisti unos"
+					>
+						✕
+					</button>
+				{/if}
 				{#if showSuggestions && suggestions.length > 0}
 					<ul class="suggestions-list" aria-label="Predložene adrese">
 						{#each suggestions as item}
@@ -348,43 +452,41 @@
 									type="button"
 									onclick={() => selectAddress(item)}
 									onkeydown={(e) => {
-										if (e.key === 'Escape') showSuggestions = false;
+										if (e.key === "Escape")
+											showSuggestions = false;
 									}}
 								>
 									<span>{item.label}</span>
-									<span class="sugg-coords">{fmt(item.lat, 4)}; {fmt(item.lon, 4)}</span>
+									<span class="sugg-coords"
+										>{fmt(item.lat, 4)}; {fmt(
+											item.lon,
+											4,
+										)}</span
+									>
 								</button>
 							</li>
 						{/each}
 					</ul>
 				{/if}
 			</div>
-			<button
-				type="button"
-				class="btn btn-ghost"
-				disabled={loading || !report || !!errorMsg}
-				onclick={() => window.print()}
-			>
-				<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-					<path d="M5 7V2h10v5M5 15H2V8h16v7h-3M5 12h10v6H5z" fill="none" stroke="currentColor" stroke-width="1.6" />
-				</svg>
-				Ispis / PDF
-			</button>
 		</div>
 
 		{#if !geocoderAvailable}
 			<p class="geocoder-msg" role="status">
-				Pretraga adresa trenutačno nije dostupna. Odaberite lokaciju klikom na kartu.
+				Pretraga adresa trenutačno nije dostupna. Odaberite lokaciju
+				klikom na kartu.
 			</p>
 		{/if}
-
-
 
 		<div class="preset-bar">
 			<span class="preset-title">Testne lokacije:</span>
 			<div class="preset-chips">
 				{#each PRESET_LOCATIONS as p}
-					<button type="button" class="preset" onclick={() => selectPreset(p)}>
+					<button
+						type="button"
+						class="preset"
+						onclick={() => selectPreset(p)}
+					>
 						{p.name}
 					</button>
 				{/each}
@@ -407,8 +509,13 @@
 			<div class="map-frame" bind:this={mapContainer}></div>
 		</div>
 		<div class="map-caption">
-			<span>Kliknite bilo gdje na kartu unutar Republike Hrvatske za izvještaj za tu točku.</span>
-			<span class="map-caption-coords">{dms(lat, 'N', 'S')} · {dms(lon, 'E', 'W')}</span>
+			<span
+				>Kliknite bilo gdje na kartu unutar Republike Hrvatske za
+				izvještaj za tu točku.</span
+			>
+			<span class="map-caption-coords"
+				>{dms(lat, "N", "S")} · {dms(lon, "E", "W")}</span
+			>
 		</div>
 		<MapLayers map={mapObj} {requestedLayer} />
 	</section>
@@ -420,8 +527,12 @@
 				<span>WGS84 / EPSG:4326</span>
 			</div>
 			<div class="print-brand-row">
-				<strong class="print-doc-title">Geo-rizik — Sažetak procjene prirodnih opasnosti</strong>
-				<span class="print-doc-date">Datum: {new Date().toLocaleDateString('hr-HR')}</span>
+				<strong class="print-doc-title"
+					>Geo-rizik — Sažetak procjene prirodnih opasnosti</strong
+				>
+				<span class="print-doc-date"
+					>Datum: {new Date().toLocaleDateString("hr-HR")}</span
+				>
 			</div>
 		</div>
 
@@ -429,8 +540,12 @@
 			<p class="label">Izvještaj za odabranu lokaciju</p>
 			<h2>{selectedLabel}</h2>
 			<p class="coords">
-				<span class="coords-dms">{dms(lat, 'N', 'S')}&ensp;{dms(lon, 'E', 'W')}</span>
-				<span class="coords-dec">WGS84 <code>{fmt(lat, 5)}; {fmt(lon, 5)}</code></span>
+				<span class="coords-dms"
+					>{dms(lat, "N", "S")}&ensp;{dms(lon, "E", "W")}</span
+				>
+				<span class="coords-dec"
+					>WGS84 <code>{fmt(lat, 5)}; {fmt(lon, 5)}</code></span
+				>
 			</p>
 		</header>
 
@@ -441,23 +556,34 @@
 			</div>
 		{:else if errorMsg}
 			<div class="status-error" role="alert">
-				<strong>Greška:</strong> {errorMsg}
+				<strong>Greška:</strong>
+				{errorMsg}
 			</div>
 		{:else if report}
 			{@const top = report.most_significant}
 			{#if top}
-				{@const topMeta = LEVEL_META[top.level] || LEVEL_META.nema_podataka}
-				{@const topHazard = HAZARD_META[top.hazard] || { title: top.hazard, code: '··' }}
+				{@const topMeta =
+					LEVEL_META[top.level] || LEVEL_META.nema_podataka}
+				{@const topHazard = HAZARD_META[top.hazard] || {
+					title: top.hazard,
+					code: "··",
+				}}
 				<div class="verdict tone-{topMeta.tone}">
 					<div class="verdict-strip">
 						<span class="lvl-text">{topMeta.label}</span>
-						<span class="verdict-tag">Najznačajniji utvrđeni rizik</span>
+						<span class="verdict-tag"
+							>Najznačajniji utvrđeni rizik</span
+						>
 					</div>
 					<div class="verdict-body">
 						<div class="verdict-title">
 							<span class="hz-code">{topHazard.code}</span>
 							<h3>{topHazard.title}</h3>
-							<span class="meter meter-{topMeta.tone}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+							<span
+								class="meter meter-{topMeta.tone}"
+								aria-hidden="true"
+								><i></i><i></i><i></i><i></i></span
+							>
 						</div>
 						{#if report.summary}
 							<p>{report.summary}</p>
@@ -480,7 +606,10 @@
 					</div>
 					<div class="verdict-body">
 						<div class="verdict-title">
-							<h3>Prema dostupnim kartama nije utvrđen povišeni rizik</h3>
+							<h3>
+								Prema dostupnim kartama nije utvrđen povišeni
+								rizik
+							</h3>
 						</div>
 						{#if report.summary}
 							<p>{report.summary}</p>
@@ -492,13 +621,25 @@
 			{#if availableHazards.length > 0}
 				<div class="section-head">
 					<h3>Utvrđene razine po vrstama opasnosti</h3>
-					<span class="section-count">{String(availableHazards.length).padStart(2, '0')}</span>
+					<span class="section-count"
+						>{String(availableHazards.length).padStart(
+							2,
+							"0",
+						)}</span
+					>
 				</div>
-				<p class="section-sub">Detaljna procjena iz dostupnih izvora za odabranu točku</p>
+				<p class="section-sub">
+					Detaljna procjena iz dostupnih izvora za odabranu točku
+				</p>
 				<ol class="ledger">
 					{#each availableHazards as h}
-						{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, subtitle: '', code: '··' }}
-						{@const lvl = LEVEL_META[h.level] || LEVEL_META.nema_podataka}
+						{@const meta = HAZARD_META[h.hazard] || {
+							title: h.hazard,
+							subtitle: "",
+							code: "··",
+						}}
+						{@const lvl =
+							LEVEL_META[h.level] || LEVEL_META.nema_podataka}
 						<li class="ledger-row">
 							<article>
 								<div class="row-top">
@@ -506,74 +647,141 @@
 									<div class="row-title">
 										<h4>{meta.title}</h4>
 										{#if meta.subtitle}
-											<p class="row-sub">{meta.subtitle}</p>
+											<p class="row-sub">
+												{meta.subtitle}
+											</p>
 										{/if}
 									</div>
 									<div class="row-level level-{lvl.tone}">
-										<span class="meter meter-{lvl.tone}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-										<span class="lvl-text">{lvl.label}</span>
+										<span
+											class="meter meter-{lvl.tone}"
+											aria-hidden="true"
+											><i></i><i></i><i></i><i></i></span
+										>
+										<span class="lvl-text">{lvl.label}</span
+										>
 									</div>
 								</div>
 
 								<div class="row-body">
 									{#if h.explanation}
-										<p class="row-explanation">{h.explanation}</p>
+										<p class="row-explanation">
+											{h.explanation}
+										</p>
 									{/if}
 
-									{#if h.detail && h.hazard === 'flood' && h.level !== 'nema_podataka' && h.detail.velika !== undefined}
+									{#if h.detail && h.hazard === "flood" && h.level !== "nema_podataka" && h.detail.velika !== undefined}
 										<dl class="detail-grid">
 											<div>
 												<dt>Velika vjerojatnost</dt>
-												<dd>{FLOOD_DEPTH_TEXT[h.detail.velika] || h.detail.velika || 'nema podatka'}</dd>
+												<dd>
+													{FLOOD_DEPTH_TEXT[
+														h.detail.velika
+													] ||
+														h.detail.velika ||
+														"nema podatka"}
+												</dd>
 											</div>
 											<div>
 												<dt>Srednja vjerojatnost</dt>
-												<dd>{FLOOD_DEPTH_TEXT[h.detail.srednja] || h.detail.srednja || 'nema podatka'}</dd>
+												<dd>
+													{FLOOD_DEPTH_TEXT[
+														h.detail.srednja
+													] ||
+														h.detail.srednja ||
+														"nema podatka"}
+												</dd>
 											</div>
 											<div>
 												<dt>Mala vjerojatnost</dt>
-												<dd>{FLOOD_DEPTH_TEXT[h.detail.mala] || h.detail.mala || 'nema podatka'}</dd>
+												<dd>
+													{FLOOD_DEPTH_TEXT[
+														h.detail.mala
+													] ||
+														h.detail.mala ||
+														"nema podatka"}
+												</dd>
 											</div>
 										</dl>
-									{:else if h.detail && h.hazard === 'flood' && h.detail.rp10 !== undefined}
+									{:else if h.detail && h.hazard === "flood" && h.detail.rp10 !== undefined}
 										<dl class="detail-grid">
-											{#each [['10', h.detail.rp10], ['100', h.detail.rp100], ['500', h.detail.rp500]] as [rp, val]}
+											{#each [["10", h.detail.rp10], ["100", h.detail.rp100], ["500", h.detail.rp500]] as [rp, val]}
 												<div>
-													<dt>Povratno razdoblje {rp} god.</dt>
-													<dd>{val === null || val === undefined ? 'nema podatka' : `${fmt(val)} m`}</dd>
+													<dt>
+														Povratno razdoblje {rp} god.
+													</dt>
+													<dd>
+														{val === null ||
+														val === undefined
+															? "nema podatka"
+															: `${fmt(val)} m`}
+													</dd>
 												</div>
 											{/each}
 										</dl>
-									{:else if h.detail && h.hazard === 'seismic' && h.detail.ag_g !== undefined}
+									{:else if h.detail && h.hazard === "seismic" && h.detail.ag_g !== undefined}
 										<dl class="detail-grid">
 											<div>
-												<dt>Vršno ubrzanje tla (ag, 475 god.)</dt>
-												<dd><strong>{fmt(h.detail.ag_g)} g</strong></dd>
+												<dt>
+													Vršno ubrzanje tla (ag, 475
+													god.)
+												</dt>
+												<dd>
+													<strong
+														>{fmt(h.detail.ag_g)} g</strong
+													>
+												</dd>
 											</div>
 											{#if h.detail.udaljenost_km !== undefined && h.detail.udaljenost_km !== null}
 												<div>
-													<dt>Udaljenost do točke mreže</dt>
-													<dd>{fmt(h.detail.udaljenost_km)} km</dd>
+													<dt>
+														Udaljenost do točke
+														mreže
+													</dt>
+													<dd>
+														{fmt(
+															h.detail
+																.udaljenost_km,
+														)} km
+													</dd>
 												</div>
 											{/if}
 										</dl>
 									{:else if h.detail && h.detail.podloznost}
 										<dl class="detail-grid">
 											<div>
-												<dt>Razred podložnosti u studiji</dt>
-												<dd><strong>{h.detail.podloznost}</strong></dd>
+												<dt>
+													Razred podložnosti u studiji
+												</dt>
+												<dd>
+													<strong
+														>{h.detail
+															.podloznost}</strong
+													>
+												</dd>
 											</div>
 										</dl>
 									{:else if h.detail && h.detail.dubina_do !== undefined}
 										<dl class="detail-grid">
 											<div>
 												<dt>Dubina do podzemne vode</dt>
-												<dd><strong>{fmt(h.detail.dubina_do)} m</strong></dd>
+												<dd>
+													<strong
+														>{fmt(
+															h.detail.dubina_do,
+														)} m</strong
+													>
+												</dd>
 											</div>
 											{#if h.detail.udaljenost_m !== undefined && h.detail.udaljenost_m !== null}
 												<div>
 													<dt>Udaljenost bušotine</dt>
-													<dd>{fmt(h.detail.udaljenost_m)} m</dd>
+													<dd>
+														{fmt(
+															h.detail
+																.udaljenost_m,
+														)} m
+													</dd>
 												</div>
 											{/if}
 										</dl>
@@ -590,20 +798,43 @@
 									{#if h.source && h.source.title}
 										<footer class="row-source">
 											<span>
-												<span class="src-key">Izvor</span>
-												{[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
+												<span class="src-key"
+													>Izvor</span
+												>
+												{[
+													h.source.title,
+													h.source.publisher,
+												]
+													.filter(Boolean)
+													.join(" — ")}
 												{#if h.source.year || h.source.resolution}
-													({[h.source.year, h.source.resolution && `rezolucija: ${h.source.resolution}`]
+													({[
+														h.source.year,
+														h.source.resolution &&
+															`rezolucija: ${h.source.resolution}`,
+													]
 														.filter(Boolean)
-														.join(', ')})
+														.join(", ")})
 												{/if}
 											</span>
-											{#if h.source.licence}<span><span class="src-key">Licenca</span> {h.source.licence}</span>{/if}
-											{#if h.source.url && h.source.url !== 'TBD'}
-												<a href={h.source.url} target="_blank" rel="noopener noreferrer">Poveznica na izvor ↗</a>
+											{#if h.source.licence}<span
+													><span class="src-key"
+														>Licenca</span
+													>
+													{h.source.licence}</span
+												>{/if}
+											{#if h.source.url && h.source.url !== "TBD"}
+												<a
+													href={h.source.url}
+													target="_blank"
+													rel="noopener noreferrer"
+													>Poveznica na izvor ↗</a
+												>
 											{/if}
 											{#if h.source.note}
-												<span class="source-note">{h.source.note}</span>
+												<span class="source-note"
+													>{h.source.note}</span
+												>
 											{/if}
 										</footer>
 									{/if}
@@ -616,15 +847,23 @@
 
 			{#snippet nodataListContent()}
 				<p class="nodata-subtitle">
-					Izvor podataka ne pokriva ovu točku ili je servis privremeno nedostupan.
+					Izvor podataka ne pokriva ovu točku ili je servis privremeno
+					nedostupan.
 				</p>
 				<ul class="nodata-list">
 					{#each noDataHazards as h}
-						{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, code: '··' }}
+						{@const meta = HAZARD_META[h.hazard] || {
+							title: h.hazard,
+							code: "··",
+						}}
 						{@const reasonText =
-							h.notes && h.notes.length > 0 ? h.notes.join(' ') : h.explanation || ''}
+							h.notes && h.notes.length > 0
+								? h.notes.join(" ")
+								: h.explanation || ""}
 						<li class="nodata-item">
-							<span class="hz-code hz-code-muted">{meta.code}</span>
+							<span class="hz-code hz-code-muted"
+								>{meta.code}</span
+							>
 							<div class="nodata-main">
 								<span class="nodata-name">{meta.title}</span>
 								{#if reasonText}
@@ -632,8 +871,14 @@
 								{/if}
 								{#if h.source && h.source.title}
 									<span class="nodata-source">
-										Izvor: {[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
-										{#if h.source.year}({h.source.year}.){/if}
+										Izvor: {[
+											h.source.title,
+											h.source.publisher,
+										]
+											.filter(Boolean)
+											.join(" — ")}
+										{#if h.source.year}({h.source
+												.year}.){/if}
 									</span>
 								{/if}
 							</div>
@@ -645,19 +890,39 @@
 
 			{#if noDataHazards.length > 0}
 				<!-- Na ekranu: interaktivni sklopivi detalji -->
-				<details class="nodata-box no-print" open={availableHazards.length === 0}>
+				<details
+					class="nodata-box no-print"
+					open={availableHazards.length === 0}
+				>
 					<summary>
-						<span class="nodata-title">Nedostupni podaci za ovu lokaciju</span>
-						<span class="section-count">{String(noDataHazards.length).padStart(2, '0')}</span>
+						<span class="nodata-title"
+							>Nedostupni podaci za ovu lokaciju</span
+						>
+						<span class="section-count"
+							>{String(noDataHazards.length).padStart(
+								2,
+								"0",
+							)}</span
+						>
 					</summary>
 					{@render nodataListContent()}
 				</details>
 
 				<!-- Za ispis / PDF (A4): uvijek otvorena lista sa sažetim popisom u istom formatu -->
-				<section class="nodata-box nodata-print-box only-print" aria-label="Nedostupni podaci za ovu lokaciju">
+				<section
+					class="nodata-box nodata-print-box only-print"
+					aria-label="Nedostupni podaci za ovu lokaciju"
+				>
 					<div class="nodata-print-head">
-						<span class="nodata-title">Nedostupni podaci za ovu lokaciju</span>
-						<span class="section-count">{String(noDataHazards.length).padStart(2, '0')}</span>
+						<span class="nodata-title"
+							>Nedostupni podaci za ovu lokaciju</span
+						>
+						<span class="section-count"
+							>{String(noDataHazards.length).padStart(
+								2,
+								"0",
+							)}</span
+						>
 					</div>
 					{@render nodataListContent()}
 				</section>
@@ -666,18 +931,29 @@
 			<ReportAssistant {report} />
 
 			{#if report.recommended_actions && report.recommended_actions.length > 0}
-				<section class="actions-section" aria-label="Preporučeni koraci">
+				<section
+					class="actions-section"
+					aria-label="Preporučeni koraci"
+				>
 					<div class="section-head">
-						<h3>Preporučeni sljedeći koraci i nadležne institucije</h3>
+						<h3>
+							Preporučeni sljedeći koraci i nadležne institucije
+						</h3>
 					</div>
 					<ol class="actions-list">
 						{#each report.recommended_actions as act, i}
 							<li>
-								<span class="action-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+								<span class="action-num" aria-hidden="true"
+									>{String(i + 1).padStart(2, "0")}</span
+								>
 								<div>
 									<h4>{act.title}</h4>
 									<p>{act.description}</p>
-									<a href={act.url} target="_blank" rel="noopener noreferrer">
+									<a
+										href={act.url}
+										target="_blank"
+										rel="noopener noreferrer"
+									>
 										{act.institution} ↗
 									</a>
 								</div>
@@ -688,7 +964,8 @@
 			{/if}
 
 			<div class="report-disclaimer" role="note">
-				<strong>Napomena o odgovornosti:</strong> {report.disclaimer}
+				<strong>Napomena o odgovornosti:</strong>
+				{report.disclaimer}
 			</div>
 		{/if}
 	</section>
@@ -699,15 +976,15 @@
 	.hero {
 		display: grid;
 		grid-template-columns: 1fr;
-		gap: 1.25rem 3rem;
+		gap: 1.5rem 2.5rem;
 		padding-bottom: 1.5rem;
 		margin-bottom: 1.25rem;
 		border-bottom: 1px solid var(--rule);
 	}
 	@media (min-width: 1100px) {
 		.hero {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-			align-items: end;
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+			align-items: start;
 		}
 	}
 	.hero-copy .label {
@@ -727,51 +1004,148 @@
 		color: var(--ink-2);
 		font-size: 1rem;
 	}
-	.search-box-wrap {
+	.search-card {
 		position: relative;
+		background: var(--surface);
+		border: 1.5px solid var(--hair);
+		border-radius: 8px;
+		padding: 1.15rem 1.35rem 1.25rem;
+		box-shadow: 0 2px 10px rgba(29, 28, 26, 0.05);
+	}
+	.search-card-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		margin-bottom: 0.65rem;
 	}
 	.search-label {
-		display: block;
-		margin-bottom: 0.35rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		cursor: pointer;
+		user-select: none;
+	}
+	.search-icon-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: 4px;
+		background: #fbf5eb;
+		color: var(--accent);
+		border: 1px solid #ebdcc4;
+		flex-shrink: 0;
+	}
+	.search-label-title {
+		font-family: var(--sans);
+		font-size: 1.08rem;
+		font-weight: 700;
+		color: var(--ink);
+		letter-spacing: -0.01em;
+	}
+	.search-badge {
+		font-family: var(--mono);
+		font-size: 0.68rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--muted);
+		background: var(--paper-2);
+		padding: 0.15rem 0.45rem;
+		border-radius: 3px;
+		border: 1px solid var(--hair);
+	}
+	.print-btn {
+		font-size: 0.82rem;
+		padding: 0.3rem 0.65rem;
+		gap: 0.35rem;
+		color: var(--muted);
+		border: 1px solid var(--hair);
+		border-radius: 4px;
+		background: transparent;
+	}
+	.print-btn:hover:not(:disabled) {
+		background: var(--paper-2);
+		color: var(--ink);
 	}
 	.search-input-row {
 		display: flex;
 		gap: 0.5rem;
-		flex-wrap: wrap;
+		width: 100%;
 	}
 	.input-anchor {
 		position: relative;
 		flex: 1;
-		min-width: 240px;
+		width: 100%;
+	}
+	.input-leading-icon {
+		position: absolute;
+		left: 0.9rem;
+		top: 50%;
+		transform: translateY(-50%);
+		color: var(--muted);
+		display: flex;
+		align-items: center;
+		pointer-events: none;
+		z-index: 1;
 	}
 	.field-lg {
 		min-height: 3.1rem;
-		font-size: 1.08rem;
-		border-width: 2px;
+		font-size: 1.05rem;
+		border-width: 1.5px;
+		border-color: var(--ink);
+		border-radius: 4px;
 	}
-	.search-input-row .btn {
-		min-height: 3.1rem;
+	.with-leading-icon {
+		padding-left: 2.6rem;
+		padding-right: 2.6rem;
+	}
+	.clear-input-btn {
+		position: absolute;
+		right: 0.75rem;
+		top: 50%;
+		transform: translateY(-50%);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.5rem;
+		height: 1.5rem;
+		padding: 0;
+		border: none;
+		border-radius: 50%;
+		background: var(--paper-2);
+		color: var(--muted);
+		font-size: 0.82rem;
+		cursor: pointer;
+		transition: all 0.12s ease;
+		z-index: 1;
+	}
+	.clear-input-btn:hover {
+		background: var(--ink);
+		color: #ffffff;
 	}
 	.suggestions-list {
 		position: absolute;
 		z-index: 30;
-		top: 100%;
+		top: calc(100% + 2px);
 		left: 0;
 		right: 0;
 		margin: 0;
 		padding: 0;
 		list-style: none;
 		background: var(--surface);
-		border: 2px solid var(--ink);
-		border-top-width: 0;
-		box-shadow: 6px 6px 0 rgba(29, 28, 26, 0.12);
+		border: 1.5px solid var(--ink);
+		border-radius: 4px;
+		box-shadow: 0 8px 20px rgba(29, 28, 26, 0.14);
 		max-height: 300px;
 		overflow-y: auto;
 	}
 	.suggestions-list button {
 		width: 100%;
 		text-align: left;
-		padding: 0.6rem 0.85rem;
+		padding: 0.65rem 0.95rem;
 		border: none;
 		border-bottom: 1px solid var(--hair);
 		background: transparent;
@@ -779,6 +1153,7 @@
 		cursor: pointer;
 		display: flex;
 		justify-content: space-between;
+		align-items: center;
 		gap: 1rem;
 		font-family: var(--sans);
 		font-size: 0.95rem;
@@ -798,7 +1173,9 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.45rem 0.75rem;
-		margin-top: 0.85rem;
+		margin-top: 0.95rem;
+		padding-top: 0.8rem;
+		border-top: 1px solid var(--hair);
 	}
 	.preset-title {
 		font-family: var(--sans);
@@ -877,29 +1254,29 @@
 		min-width: 0;
 	}
 
-	/* Map sheet with graduated neatline, like a printed topographic sheet */
+	/* Map sheet with solid single color and slightly rounded corners; map itself stays square */
 	.map-sheet {
-		--tick: 28px;
 		position: relative;
-		padding: 7px;
-		border: 1.5px solid var(--ink);
-		background:
-			repeating-linear-gradient(90deg, var(--ink) 0 var(--tick), var(--surface) var(--tick) calc(var(--tick) * 2)) top / 100% 5px no-repeat,
-			repeating-linear-gradient(90deg, var(--ink) 0 var(--tick), var(--surface) var(--tick) calc(var(--tick) * 2)) bottom / 100% 5px no-repeat,
-			repeating-linear-gradient(180deg, var(--ink) 0 var(--tick), var(--surface) var(--tick) calc(var(--tick) * 2)) left / 5px 100% no-repeat,
-			repeating-linear-gradient(180deg, var(--ink) 0 var(--tick), var(--surface) var(--tick) calc(var(--tick) * 2)) right / 5px 100% no-repeat,
-			var(--surface);
+		padding: 5px;
+		border: 1.5px solid #141311;
+		border-radius: 8px;
+		background: #2e2d2c;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 	}
 	.map-frame {
 		width: 100%;
-		height: clamp(420px, 58vh, 600px);
-		min-height: 420px;
-		border: 1px solid var(--ink);
+		aspect-ratio: 1 / 1;
+		height: auto;
+		min-height: 380px;
+		max-height: 550px;
+		border: 1px solid #2d2a24;
+		border-radius: 0;
 	}
-	@media (max-width: 768px) {
+	@media (max-width: 770px) {
 		.map-frame {
-			height: 400px;
-			min-height: 340px;
+			aspect-ratio: 1 / 1;
+			height: auto;
+			min-height: 320px;
 		}
 	}
 	.map-caption {
@@ -958,7 +1335,11 @@
 	.status-bar {
 		display: block;
 		height: 4px;
-		background: repeating-linear-gradient(90deg, var(--ink) 0 14px, transparent 14px 28px);
+		background: repeating-linear-gradient(
+			90deg,
+			var(--ink) 0 14px,
+			transparent 14px 28px
+		);
 		background-size: 28px 4px;
 		animation: march 0.8s linear infinite;
 	}
@@ -1173,7 +1554,7 @@
 		color: var(--ink-2);
 	}
 	.row-notes li::marker {
-		content: '— ';
+		content: "— ";
 		color: var(--muted);
 	}
 	.row-source {
@@ -1200,7 +1581,11 @@
 	.nodata-box {
 		margin-top: 1.4rem;
 		border: 1px dashed var(--nodata-border);
-		background: repeating-linear-gradient(-45deg, transparent 0 7px, rgba(122, 116, 102, 0.07) 7px 8px);
+		background: repeating-linear-gradient(
+			-45deg,
+			transparent 0 7px,
+			rgba(122, 116, 102, 0.07) 7px 8px
+		);
 		padding: 0.2rem 0.9rem;
 	}
 	.nodata-box summary {
@@ -1220,14 +1605,14 @@
 		font-size: 0.92rem;
 	}
 	.nodata-title::before {
-		content: '+';
+		content: "+";
 		display: inline-block;
 		width: 1rem;
 		font-family: var(--mono);
 		color: var(--muted);
 	}
 	.nodata-box[open] .nodata-title::before {
-		content: '−';
+		content: "−";
 	}
 	.nodata-subtitle {
 		margin: 0 0 0.5rem 1rem;
