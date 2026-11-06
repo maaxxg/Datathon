@@ -59,6 +59,13 @@
 	box-sizing: border-box;
 }
 
+input,
+button,
+select,
+textarea {
+	font-family: var(--sans);
+}
+
 html {
 	-webkit-text-size-adjust: 100%;
 }

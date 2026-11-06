@@ -500,12 +500,13 @@
 		padding: 0.5rem 0.75rem 0.5rem 0.4rem;
 		border: none;
 		background: transparent;
-		font-family: var(--mono);
-		font-size: 0.9rem;
+		font-family: var(--sans);
+		font-size: 0.95rem;
 		color: var(--ink);
 	}
 	.prompt input::placeholder {
 		color: #77725f;
+		font-family: var(--sans);
 	}
 	.prompt input:focus {
 		outline: none;
