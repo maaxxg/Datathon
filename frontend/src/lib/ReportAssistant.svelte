@@ -90,34 +90,27 @@
 	}
 </script>
 
-<section class="assistant-section no-print" aria-label="Dodatno objašnjenje i pitanja o izvještaju">
-	<div class="assistant-header">
-		<div>
-			<h3><span aria-hidden="true">🤖</span> Dodatno objašnjenje i pitanja o izvještaju</h3>
-			<p class="assistant-sub">
-				AI ne računa razine opasnosti — sažima i odgovara isključivo na temelju gornjeg determinističkog izvještaja.
-			</p>
-		</div>
-		<button
-			type="button"
-			class="btn-explain"
-			onclick={generateExplanation}
-			disabled={loadingExplain}
-		>
-			{loadingExplain ? 'Generiranje...' : aiExplanation ? '🔄 Obnovi objašnjenje' : '✨ Generiraj sažeto objašnjenje'}
+<section class="assistant no-print" aria-label="Dodatno objašnjenje i pitanja o izvještaju">
+	<div class="section-head">
+		<h3>Objašnjenje i pitanja o izvještaju</h3>
+		<button type="button" class="btn btn-ghost btn-sm" onclick={generateExplanation} disabled={loadingExplain}>
+			{loadingExplain ? 'Generiranje…' : aiExplanation ? 'Obnovi objašnjenje' : 'Generiraj sažeto objašnjenje'}
 		</button>
 	</div>
+	<p class="assistant-note">
+		AI ne računa razine opasnosti — sažima i odgovara isključivo na temelju gornjeg determinističkog izvještaja.
+	</p>
 
 	{#if explainError}
 		<div class="assistant-error" role="alert">{explainError}</div>
 	{/if}
 
 	{#if aiExplanation}
-		<div class="explanation-box" aria-live="polite">
+		<div class="explanation" aria-live="polite">
 			<div class="explanation-meta">
-				<strong>Sažeto objašnjenje izvještaja</strong>
+				<span class="kicker">Sažeto objašnjenje izvještaja</span>
 				<span class="mode-tag {explainLlmUsed ? 'tag-llm' : 'tag-tpl'}">
-					{explainLlmUsed ? `Ollama (${explainModel})` : explainModel}
+					{explainLlmUsed ? `Ollama · ${explainModel}` : explainModel}
 				</span>
 			</div>
 			<div class="explanation-text">
@@ -128,20 +121,17 @@
 		</div>
 	{/if}
 
-	<div class="qa-box">
-		<h4>Pitaj o ovom izvještaju</h4>
-		<div class="suggested-row">
+	<div class="qa">
+		<h4 class="kicker">Pitaj o ovom izvještaju</h4>
+		<ul class="suggested">
 			{#each SUGGESTED_QUESTIONS as sq}
-				<button
-					type="button"
-					class="sq-chip"
-					disabled={loadingAsk}
-					onclick={() => submitQuestion(sq)}
-				>
-					{sq}
-				</button>
+				<li>
+					<button type="button" class="sq" disabled={loadingAsk} onclick={() => submitQuestion(sq)}>
+						{sq}
+					</button>
+				</li>
 			{/each}
-		</div>
+		</ul>
 
 		<form
 			class="qa-form"
@@ -153,17 +143,14 @@
 			<label for="report-qa-input" class="sr-only">Postavite pitanje o ovom izvještaju</label>
 			<input
 				id="report-qa-input"
+				class="field"
 				type="text"
-				placeholder="Postavite pitanje o ovom izvještaju (npr. Što znači podložnost likvefakciji?)..."
+				placeholder="npr. Što znači podložnost likvefakciji?"
 				bind:value={questionInput}
 				maxlength="400"
 			/>
-			<button
-				type="submit"
-				class="btn-ask"
-				disabled={loadingAsk || questionInput.trim().length < 2}
-			>
-				{loadingAsk ? 'Slanje...' : 'Pitaj'}
+			<button type="submit" class="btn" disabled={loadingAsk || questionInput.trim().length < 2}>
+				{loadingAsk ? 'Slanje…' : 'Pitaj'}
 			</button>
 		</form>
 
@@ -172,91 +159,68 @@
 		{/if}
 
 		{#if qaHistory.length > 0}
-			<div class="qa-list" aria-live="polite">
+			<ol class="qa-list" aria-live="polite">
 				{#each qaHistory as item}
-					<div class="qa-item">
+					<li class="qa-item">
 						<div class="qa-q">
-							<strong>Pitanje:</strong> {item.question}
+							<span class="qa-mark" aria-hidden="true">P</span>
+							<p><span class="sr-only">Pitanje:</span> {item.question}</p>
 						</div>
 						<div class="qa-a">
-							<div class="qa-a-header">
-								<strong>Odgovor:</strong>
+							<span class="qa-mark qa-mark-a" aria-hidden="true">O</span>
+							<div>
+								<span class="sr-only">Odgovor:</span>
+								{#each item.answer.split('\n\n') as para}
+									<p>{para}</p>
+								{/each}
 								<span class="mode-tag {item.llm_used ? 'tag-llm' : 'tag-tpl'}">
-									{item.llm_used ? `Ollama (${item.model})` : item.model}
+									{item.llm_used ? `Ollama · ${item.model}` : item.model}
 								</span>
 							</div>
-							{#each item.answer.split('\n\n') as para}
-								<p>{para}</p>
-							{/each}
 						</div>
-					</div>
+					</li>
 				{/each}
-			</div>
+			</ol>
 		{/if}
 	</div>
 </section>
 
 <style>
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		border: 0;
+	.assistant {
+		margin-top: 2rem;
 	}
-	.assistant-section {
-		margin-top: 1.25rem;
-		background: var(--surface);
-		border: 1.5px solid #93c5fd;
-		border-radius: 0.75rem;
-		padding: 1rem 1.25rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.85rem;
-	}
-	.assistant-header {
+	.section-head {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: flex-start;
+		align-items: center;
 		justify-content: space-between;
-		gap: 0.75rem;
+		gap: 0.5rem 0.75rem;
+		border-bottom: 1px solid var(--rule);
+		padding-bottom: 0.4rem;
 	}
-	.assistant-header h3 {
+	.section-head h3 {
 		margin: 0;
-		font-size: 1.05rem;
-		color: #0f172a;
+		font-size: 1.12rem;
 	}
-	.assistant-sub {
-		margin: 0.2rem 0 0 0;
-		font-size: 0.83rem;
+	.assistant-note {
+		margin: 0.4rem 0 0.9rem 0;
+		font-size: 0.82rem;
 		color: var(--muted);
 	}
-	.btn-explain {
-		padding: 0.5rem 0.9rem;
-		font-size: 0.86rem;
+	.kicker {
+		margin: 0;
+		font-family: var(--sans);
+		font-size: 0.72rem;
 		font-weight: 700;
-		background: #eff6ff;
-		color: #1e3a8a;
-		border: 1.5px solid #3b82f6;
-		border-radius: 0.5rem;
-		cursor: pointer;
-		white-space: nowrap;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--muted);
 	}
-	.btn-explain:hover:not(:disabled) {
-		background: #dbeafe;
-	}
-	.btn-explain:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
-	.explanation-box {
-		background: #f8fafc;
-		border: 1px solid #cbd5e1;
-		border-radius: 0.5rem;
-		padding: 0.8rem 0.95rem;
+	.explanation {
+		margin-bottom: 1rem;
+		padding: 0.85rem 1rem;
+		background: var(--surface);
+		border-left: 3px solid var(--ink);
 	}
 	.explanation-meta {
 		display: flex;
@@ -265,136 +229,139 @@
 		align-items: center;
 		gap: 0.5rem;
 		margin-bottom: 0.45rem;
-		font-size: 0.84rem;
 	}
 	.explanation-text p {
-		margin: 0 0 0.5rem 0;
-		font-size: 0.9rem;
+		margin: 0 0 0.6rem 0;
+		font-family: var(--serif);
+		font-size: 0.98rem;
+		line-height: 1.55;
 		white-space: pre-line;
+		max-width: 66ch;
 	}
 	.explanation-text p:last-child {
 		margin-bottom: 0;
 	}
 	.mode-tag {
-		font-size: 0.73rem;
-		font-weight: 700;
-		padding: 0.15rem 0.5rem;
-		border-radius: 999px;
-		border: 1px solid;
+		display: inline-block;
+		font-family: var(--mono);
+		font-size: 0.7rem;
+		padding: 0.05rem 0.4rem;
+		border: 1px solid currentColor;
 	}
 	.tag-llm {
-		background: #dcfce7;
-		color: #166534;
-		border-color: #86efac;
+		color: var(--low-text);
+		background: var(--low-bg);
 	}
 	.tag-tpl {
-		background: #f1f5f9;
-		color: #334155;
-		border-color: #cbd5e1;
+		color: var(--ink-2);
+		background: var(--paper);
 	}
-	.qa-box {
-		border-top: 1px solid #e2e8f0;
-		padding-top: 0.75rem;
+	.qa {
 		display: flex;
 		flex-direction: column;
 		gap: 0.6rem;
 	}
-	.qa-box h4 {
-		margin: 0;
-		font-size: 0.95rem;
-	}
-	.suggested-row {
+	.suggested {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.4rem;
+		flex-direction: column;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		border-top: 1px solid var(--hair);
 	}
-	.sq-chip {
-		background: #f8fafc;
-		color: #334155;
-		border: 1px solid #cbd5e1;
-		border-radius: 0.375rem;
-		padding: 0.25rem 0.55rem;
-		font-size: 0.78rem;
-		cursor: pointer;
+	.sq {
+		width: 100%;
+		padding: 0.45rem 0;
+		background: none;
+		border: none;
+		border-bottom: 1px solid var(--hair);
+		font-family: var(--sans);
+		font-size: 0.88rem;
+		color: var(--ink);
 		text-align: left;
+		cursor: pointer;
 	}
-	.sq-chip:hover:not(:disabled) {
-		background: #eff6ff;
-		border-color: #93c5fd;
-		color: #1e3a8a;
+	.sq::before {
+		content: '→';
+		display: inline-block;
+		width: 1.4rem;
+		color: var(--accent);
+		font-family: var(--mono);
+	}
+	.sq:hover:not(:disabled) {
+		color: var(--accent-ink);
+		background: var(--paper-2);
+	}
+	.sq:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 	.qa-form {
 		display: flex;
 		gap: 0.5rem;
 		flex-wrap: wrap;
+		margin-top: 0.2rem;
 	}
 	.qa-form input {
 		flex: 1;
 		min-width: 200px;
-		padding: 0.55rem 0.8rem;
-		font-size: 0.92rem;
-		border: 1.5px solid #64748b;
-		border-radius: 0.45rem;
+		width: auto;
 	}
-	.qa-form input:focus {
-		outline: 3px solid #93c5fd;
-		border-color: var(--primary);
-	}
-	.btn-ask {
-		padding: 0.55rem 1rem;
-		font-weight: 700;
-		background: #1d4ed8;
-		color: #ffffff;
-		border: 1px solid #1e40af;
-		border-radius: 0.45rem;
-		cursor: pointer;
-	}
-	.btn-ask:hover:not(:disabled) {
-		background: #1e40af;
-	}
-	.btn-ask:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
+	.qa-form .btn {
+		min-height: 2.75rem;
 	}
 	.assistant-error {
 		padding: 0.55rem 0.75rem;
 		background: var(--high-bg);
-		border: 1px solid var(--high-border);
+		border: 1.5px solid var(--high-border);
 		color: var(--high-text);
-		border-radius: 0.45rem;
 		font-size: 0.85rem;
 	}
 	.qa-list {
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
-		margin-top: 0.25rem;
+		gap: 0;
+		margin: 0.3rem 0 0 0;
+		padding: 0;
+		list-style: none;
 	}
 	.qa-item {
-		background: #f8fafc;
-		border: 1px solid #e2e8f0;
-		border-radius: 0.5rem;
-		padding: 0.7rem 0.85rem;
-		font-size: 0.88rem;
+		padding: 0.8rem 0;
+		border-bottom: 1px solid var(--hair);
+		font-size: 0.9rem;
 	}
-	.qa-q {
-		margin-bottom: 0.4rem;
-		color: #0f172a;
+	.qa-q,
+	.qa-a {
+		display: grid;
+		grid-template-columns: 1.6rem minmax(0, 1fr);
+		gap: 0.5rem;
 	}
-	.qa-a-header {
-		display: flex;
-		justify-content: space-between;
+	.qa-q p {
+		margin: 0;
+		font-weight: 600;
+	}
+	.qa-a {
+		margin-top: 0.45rem;
+	}
+	.qa-mark {
+		display: inline-flex;
 		align-items: center;
-		flex-wrap: wrap;
-		gap: 0.4rem;
-		margin-bottom: 0.25rem;
+		justify-content: center;
+		width: 1.4rem;
+		height: 1.4rem;
+		font-family: var(--mono);
+		font-size: 0.75rem;
+		font-weight: 700;
+		border: 1px solid var(--ink);
+	}
+	.qa-mark-a {
+		background: var(--ink);
+		color: var(--paper);
 	}
 	.qa-a p {
-		margin: 0 0 0.4rem 0;
-		color: #334155;
+		margin: 0 0 0.45rem 0;
+		font-family: var(--serif);
+		color: var(--ink-2);
 		white-space: pre-line;
-	}
-	.qa-a p:last-child {
-		margin-bottom: 0;
 	}
 </style>

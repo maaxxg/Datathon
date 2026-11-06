@@ -2,37 +2,37 @@ export const HAZARD_META = {
 	flood: {
 		title: 'Poplave',
 		subtitle: 'Riječne i površinske poplave po scenarijima vjerojatnosti',
-		icon: '🌊'
+		code: 'PO'
 	},
 	seismic: {
 		title: 'Potresna opasnost',
 		subtitle: 'Referentno vršno ubrzanje tla (povratno razdoblje 475 godina, Eurokod 8)',
-		icon: '🫨'
+		code: 'PT'
 	},
 	landslide: {
 		title: 'Podložnost klizištima',
 		subtitle: 'Stabilnost padina i mogućnost klizanja tla (studija Banovina)',
-		icon: '⛰️'
+		code: 'KL'
 	},
 	liquefaction: {
 		title: 'Podložnost likvefakciji',
 		subtitle: 'Gubitak nosivosti zasićenog pjeskovitog tla pri potresu (Banovina)',
-		icon: '💧'
+		code: 'LI'
 	},
 	sinkhole: {
 		title: 'Podložnost vrtačama',
 		subtitle: 'Mogućnost urušnih ponikvi u krškom i pokrivenom krškom terenu (Banovina)',
-		icon: '🕳️'
+		code: 'VR'
 	},
 	unfavourable: {
 		title: 'Nepovoljno za gradnju',
 		subtitle: 'Izdvojene zone nepovoljnih geotehničkih uvjeta (Banovina)',
-		icon: '⚠️'
+		code: 'NG'
 	},
 	groundwater: {
 		title: 'Dubina podzemne vode',
 		subtitle: 'Najbliže točkasto mjerenje razine podzemne vode (Banovina)',
-		icon: '🚰'
+		code: 'PV'
 	}
 };
 
@@ -140,3 +140,23 @@ export const MAP_LEGEND = {
 };
 
 export const MAP_UNAVAILABLE = 'Sloj trenutačno nije dostupan.';
+
+
+// Degrees-minutes-seconds, as printed on map sheet margins: 45°26′15″ N
+export function dms(value, positive, negative) {
+	if (value === null || value === undefined || Number.isNaN(Number(value))) return '';
+	const v = Math.abs(Number(value));
+	let d = Math.floor(v);
+	let m = Math.floor((v - d) * 60);
+	let s = Math.round(((v - d) * 60 - m) * 60);
+	if (s === 60) {
+		s = 0;
+		m += 1;
+	}
+	if (m === 60) {
+		m = 0;
+		d += 1;
+	}
+	const pad = (n) => String(n).padStart(2, '0');
+	return `${d}°${pad(m)}′${pad(s)}″ ${Number(value) < 0 ? negative : positive}`;
+}
