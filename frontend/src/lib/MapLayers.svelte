@@ -313,34 +313,49 @@
 
 <style>
 	.layers {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		margin: 0.6rem 0;
+		margin: 1rem 0 0;
 		font-size: 0.88rem;
+		border-top: 1px solid var(--rule);
+	}
+	.layers::before {
+		content: 'Slojevi karte';
+		display: block;
+		padding: 0.45rem 0 0.1rem;
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--muted);
 	}
 	.group {
 		margin: 0;
 		min-width: 0;
-		border: 1px solid var(--border);
-		border-radius: 0.5rem;
-		padding: 0.4rem 0.7rem 0.6rem;
+		border: none;
+		border-bottom: 1px solid var(--hair);
+		padding: 0.55rem 0 0.65rem;
 	}
 	.group legend {
+		float: left;
+		width: 100%;
+		margin-bottom: 0.3rem;
+		padding: 0;
+		font-family: var(--serif);
+		font-size: 0.98rem;
 		font-weight: 700;
-		padding: 0 0.3rem;
 	}
 	.row {
+		clear: both;
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.5rem 1rem;
+		gap: 0.4rem 1.25rem;
 	}
 	.toggle,
 	.sel {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: 0.45rem;
+		min-height: 2rem;
 		font-weight: 600;
 	}
 	.toggle {
@@ -352,23 +367,24 @@
 		padding: 0;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.25rem 1rem;
+		gap: 0.3rem 1.1rem;
+		font-size: 0.82rem;
 	}
 	.legend li {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: 0.4rem;
 	}
 	.sw {
 		width: 1.1rem;
 		height: 0.8rem;
-		border: 1px solid #1f2937;
+		border: 1px solid var(--ink);
 		display: inline-block;
 	}
 	.hint,
 	.attrib {
 		margin: 0.4rem 0 0;
-		font-size: 0.82rem;
+		font-size: 0.8rem;
 		color: var(--muted);
 		overflow-wrap: anywhere;
 	}
@@ -377,19 +393,22 @@
 		width: 1.5rem;
 		height: 1.5rem;
 		margin: 0;
+		accent-color: var(--ink);
 	}
 	select {
 		min-height: 2rem;
 		max-width: 100%;
-		padding-inline-end: 1.5rem;
-	}
-	.toggle,
-	.sel {
-		min-height: 2rem;
+		padding: 0.2rem 1.5rem 0.2rem 0.45rem;
+		border: 1px solid var(--ink);
+		border-radius: 2px;
+		background: var(--surface);
+		color: var(--ink);
+		font-family: var(--sans);
+		font-size: 0.85rem;
 	}
 	input:focus-visible,
 	select:focus-visible {
-		outline: 2px solid #1d4ed8;
+		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
 </style>

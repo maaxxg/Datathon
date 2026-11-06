@@ -168,21 +168,19 @@
 	}
 </script>
 
-<div class="nl-query-window no-print" aria-label="Pretraga prirodnim jezikom i filteri područja">
-	<div class="nl-header">
-		<div>
-			<div class="nl-title-row">
-				<h2><span aria-hidden="true">🔍</span> Pretraga područja prirodnim jezikom i filterima</h2>
-				{#if result}
-					<span class="llm-badge {result.llm_used ? 'llm-online' : 'llm-fallback'}">
-						{result.llm_used ? `Ollama (${result.model})` : `Pravila / predložak (${result.model})`}
-					</span>
-				{/if}
-			</div>
+<section class="nl-query no-print" aria-labelledby="nl-heading">
+	<div class="nl-head">
+		<div class="nl-head-text">
+			<h2 id="nl-heading">Pretraga područja prirodnim jezikom</h2>
 			<p class="nl-subtitle">
 				Opišite kakvo područje tražite na hrvatskom jeziku. Sustav prevodi upit u provjerljive filtere nad katalogom otvorenih podataka i na karti označava odgovarajuće zone (H3 mreža).
 			</p>
 		</div>
+		{#if result}
+			<span class="engine-tag {result.llm_used ? 'engine-llm' : 'engine-rules'}">
+				{result.llm_used ? `Ollama · ${result.model}` : `Pravila · ${result.model}`}
+			</span>
+		{/if}
 	</div>
 
 	<form
@@ -193,25 +191,30 @@
 		}}
 	>
 		<label for="nl-query-input" class="sr-only">Unesite upit prirodnim jezikom na hrvatskom</label>
-		<input
-			id="nl-query-input"
-			type="text"
-			placeholder="Npr. Pronađi mi područja oko Petrinje bez poplava i s niskom podložnosti klizištima..."
-			bind:value={queryText}
-			maxlength="500"
-		/>
-		<button type="submit" class="btn-primary" disabled={loading || queryText.trim().length < 2}>
-			{loading ? 'Pretraživanje...' : 'Pretraži područje'}
+		<div class="prompt">
+			<span class="prompt-sign" aria-hidden="true">›</span>
+			<input
+				id="nl-query-input"
+				type="text"
+				placeholder="npr. područja oko Petrinje bez poplava i s niskom podložnosti klizištima"
+				bind:value={queryText}
+				maxlength="500"
+			/>
+		</div>
+		<button type="submit" class="btn" disabled={loading || queryText.trim().length < 2}>
+			{loading ? 'Pretraživanje…' : 'Pretraži područje'}
 		</button>
 	</form>
 
 	<div class="nl-examples">
 		<span class="examples-label">Primjeri upita:</span>
-		{#each EXAMPLE_QUERIES as ex}
-			<button type="button" class="example-chip" onclick={() => submitQuery(ex)}>
-				{ex}
-			</button>
-		{/each}
+		<ul class="example-chips">
+			{#each EXAMPLE_QUERIES as ex}
+				<li>
+					<button type="button" class="example" onclick={() => submitQuery(ex)}>„{ex}“</button>
+				</li>
+			{/each}
+		</ul>
 	</div>
 
 	{#if errorMsg}
@@ -220,38 +223,42 @@
 
 	{#if result && result.validated}
 		{@const val = result.validated}
-		<div class="nl-result-box" aria-live="polite">
-			<div class="nl-meta-bar">
-				<div class="meta-item">
-					<span class="meta-label">Namjera:</span>
-					<strong>{INTENT_LABELS[val.intent] || val.intent}</strong>
+		<div class="nl-result" aria-live="polite">
+			<dl class="nl-meta">
+				<div>
+					<dt>Namjera</dt>
+					<dd>{INTENT_LABELS[val.intent] || val.intent}</dd>
 				</div>
 				{#if val.region}
-					<div class="meta-item">
-						<span class="meta-label">Regija:</span>
-						<strong class="region-name">{val.region}</strong>
-						<span class="coverage-pill {val.in_banovina ? 'cov-banovina' : 'cov-croatia'}">
-							{val.in_banovina ? 'Obuhvat Banovina (svi slojevi)' : 'Izvan Banovine (nacionalni slojevi)'}
-						</span>
+					<div>
+						<dt>Regija</dt>
+						<dd>
+							<span class="region-name">{val.region}</span>
+							<span class="coverage {val.in_banovina ? 'cov-banovina' : 'cov-croatia'}">
+								{val.in_banovina ? 'Obuhvat Banovina (svi slojevi)' : 'Izvan Banovine (nacionalni slojevi)'}
+							</span>
+						</dd>
 					</div>
 				{/if}
 				{#if val.center}
-					<button
-						type="button"
-						class="btn-small"
-						onclick={() => {
-							onSelectRegion(val.center, val.region);
-							if (activeGrid) syncGridToMap(activeGrid, true);
-						}}
-					>
-						📍 Prikaži regiju na karti
-					</button>
+					<div class="meta-action">
+						<button
+							type="button"
+							class="btn btn-ghost btn-sm"
+							onclick={() => {
+								onSelectRegion(val.center, val.region);
+								if (activeGrid) syncGridToMap(activeGrid, true);
+							}}
+						>
+							Prikaži regiju na karti
+						</button>
+					</div>
 				{/if}
-			</div>
+			</dl>
 
 			{#if val.warnings && val.warnings.length > 0}
 				<div class="nl-warnings" role="status">
-					<strong>⚠️ Upozorenja kataloga slojeva (nepodržani kriteriji / obuhvat):</strong>
+					<strong>Upozorenja kataloga slojeva (nepodržani kriteriji / obuhvat)</strong>
 					<ul>
 						{#each val.warnings as w}
 							<li>{w}</li>
@@ -263,53 +270,54 @@
 			{#if activeGrid && activeGrid.summary}
 				{@const s = activeGrid.summary}
 				{@const activeRes = s.resolutions ? s.resolutions[activeH3Tier] ?? s.h3_resolution : s.h3_resolution}
-				<div class="h3-grid-banner">
-					<div class="h3-banner-top">
-						<div>
-							<strong>🗺️ Mrežna analiza područja ({s.region}):</strong>
-							<span>
-								Zadovoljava uvjete: <strong>{s.matched_cells}</strong> od <strong>{s.total_cells}</strong> baznih H3 ćelija
-								(~<strong>{fmt(s.matched_area_km2, 1)} km²</strong>, bazna ćelija res {s.h3_resolution || 9} ~{fmt(s.cell_area_km2, 2)} km²).
-							</span>
+				<div class="h3-panel">
+					<div class="h3-top">
+						<div class="h3-figure">
+							<span class="h3-big">{s.matched_cells}<span class="h3-of">/{s.total_cells}</span></span>
+							<span class="h3-cap">baznih H3 ćelija zadovoljava uvjete · {s.region}</span>
 						</div>
-						<div class="h3-toggles">
+						<div class="h3-figure">
+							<span class="h3-big">{fmt(s.matched_area_km2, 1)}<span class="h3-of"> km²</span></span>
+							<span class="h3-cap">bazna ćelija res {s.h3_resolution || 9} ≈ {fmt(s.cell_area_km2, 2)} km²</span>
+						</div>
+					</div>
+					<div class="h3-controls">
+						<label class="h3-toggle">
+							<input
+								type="checkbox"
+								bind:checked={showGridOnMap}
+								onchange={() => syncGridToMap(activeGrid, false)}
+							/>
+							Prikaži H3 mrežu na karti
+						</label>
+						{#if showGridOnMap}
 							<label class="h3-toggle">
 								<input
 									type="checkbox"
-									bind:checked={showGridOnMap}
+									bind:checked={showExcludedCells}
 									onchange={() => syncGridToMap(activeGrid, false)}
 								/>
-								Prikaži H3 mrežu na karti
+								Prikaži i isključene ćelije
 							</label>
-							{#if showGridOnMap}
-								<label class="h3-toggle">
-									<input
-										type="checkbox"
-										bind:checked={showExcludedCells}
-										onchange={() => syncGridToMap(activeGrid, false)}
-									/>
-									Prikaži i isključene ćelije
-								</label>
-							{/if}
-						</div>
+						{/if}
 					</div>
-					<div class="h3-legend-row">
-						<span class="h3-swatch-item">
+					<ul class="h3-legend">
+						<li>
 							<span class="h3-sw h3-sw-match" aria-hidden="true"></span>
-							✓ Zadovoljava sve podržane filtere ({s.matched_cells})
-						</span>
+							Zadovoljava sve podržane filtere ({s.matched_cells})
+						</li>
 						{#if showExcludedCells}
-							<span class="h3-swatch-item">
+							<li>
 								<span class="h3-sw h3-sw-excl" aria-hidden="true"></span>
-								✕ Isključeno barem jednim filterom ({s.excluded_cells})
-							</span>
+								Isključeno barem jednim filterom ({s.excluded_cells})
+							</li>
 						{/if}
 						{#if activeRes}
-							<span class="h3-swatch-item">
-								🔍 Trenutačni prikaz na karti: <strong>H3 res {activeRes}</strong> (zumirajte za promjenu veličine ćelija)
-							</span>
+							<li class="h3-res">
+								Prikaz na karti: <strong>H3 res {activeRes}</strong> (zumirajte za promjenu veličine ćelija)
+							</li>
 						{/if}
-					</div>
+					</ul>
 					{#if s.odbl_notice}
 						<p class="h3-odbl">{s.odbl_notice}</p>
 					{/if}
@@ -317,59 +325,58 @@
 			{/if}
 
 			{#if val.intent === 'show_layer' && val.layer}
-				<div class="nl-intent-card">
+				<div class="nl-intent">
 					<span>Zahtjev za prikaz sloja na karti: <strong>{LAYER_NAMES[val.layer] || val.layer}</strong></span>
-					<button type="button" class="btn-small" onclick={() => onActivateLayer(val.layer)}>
-						🗺️ Uključi sloj na karti
+					<button type="button" class="btn btn-ghost btn-sm" onclick={() => onActivateLayer(val.layer)}>
+						Uključi sloj na karti
 					</button>
 				</div>
 			{/if}
 
 			{#if val.intent === 'compare_locations' && val.locations && val.locations.length > 0}
-				<div class="nl-intent-card">
+				<div class="nl-intent">
 					<span>Prepoznate lokacije za usporedbu (kliknite za učitavanje izvještaja):</span>
-					<div class="compare-chips">
+					<div class="compare-list">
 						{#each val.locations as loc}
-							<button type="button" class="chip" onclick={() => onSearchLocationText(loc)}>
-								📍 {loc}
+							<button type="button" class="btn btn-ghost btn-sm" onclick={() => onSearchLocationText(loc)}>
+								{loc}
 							</button>
 						{/each}
 					</div>
 				</div>
 			{/if}
 
-			<div class="nl-filters-section">
+			<div class="nl-filters">
 				<div class="filters-title">
-					<strong>Aktivni deterministički filteri ({val.supported_filters.length}):</strong>
+					<strong>Aktivni deterministički filteri <span class="count">({val.supported_filters.length})</span></strong>
 					<span class="filters-hint">Filtere možete ukloniti ili ručno dodati (mreža na karti se odmah osvježava)</span>
 				</div>
 
 				{#if val.supported_filters.length > 0}
-					<div class="filter-chips">
+					<ul class="filter-list">
 						{#each val.supported_filters as f, i}
-							{@const hMeta = HAZARD_META[f.hazard] || { title: f.hazard, icon: '🔹' }}
-							<span class="filter-chip">
-								<span aria-hidden="true">{hMeta.icon}</span>
-								<strong>{hMeta.title}:</strong>
-								<span>{MAX_LEVEL_LABELS[f.max_level] || f.max_level}</span>
+							{@const hMeta = HAZARD_META[f.hazard] || { title: f.hazard, code: '··' }}
+							<li class="filter">
+								<span class="hz-code">{hMeta.code}</span>
+								<span><strong>{hMeta.title}:</strong> {MAX_LEVEL_LABELS[f.max_level] || f.max_level}</span>
 								<button
 									type="button"
-									class="chip-remove"
+									class="filter-remove"
 									aria-label="Ukloni filter {hMeta.title}"
 									onclick={() => removeFilter(i)}
 								>
 									×
 								</button>
-							</span>
+							</li>
 						{/each}
-					</div>
+					</ul>
 				{:else}
 					<p class="no-filters-msg">Nema aktivnih podržanih filtera za ovaj upit.</p>
 				{/if}
 
 				<div class="manual-filter-bar">
 					<label>
-						Opasnost:
+						<span>Opasnost</span>
 						<select bind:value={newHazard}>
 							<option value="flood">Poplave</option>
 							<option value="seismic">Potresna opasnost</option>
@@ -381,7 +388,7 @@
 						</select>
 					</label>
 					<label>
-						Najviša dopuštena razina:
+						<span>Najviša dopuštena razina</span>
 						<select bind:value={newMaxLevel}>
 							<option value="nema_prema_karti">nema prema karti (bez opasnosti)</option>
 							<option value="nisko">najviše nisko</option>
@@ -390,7 +397,7 @@
 							<option value="niska_seizmicnost">niska seizmičnost (≤ 0,08 g)</option>
 						</select>
 					</label>
-					<button type="button" class="btn-small" onclick={addManualFilter}>
+					<button type="button" class="btn btn-sm" onclick={addManualFilter}>
 						+ Dodaj / ažuriraj filter
 					</button>
 				</div>
@@ -416,361 +423,421 @@
 			</details>
 		</div>
 	{/if}
-</div>
+</section>
 
 <style>
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		border: 0;
+	.nl-query {
+		padding: 1.1rem 1.25rem 1.25rem;
+		background: var(--surface);
+		border: 1.5px solid var(--ink);
+		box-shadow: 5px 5px 0 var(--paper-2);
 	}
-	.nl-query-window {
-		margin-top: 1rem;
-		padding-top: 1rem;
-		border-top: 1px solid var(--border);
-	}
-	.nl-title-row {
+	.nl-head {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: center;
+		align-items: flex-start;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: 0.5rem 1rem;
 	}
-	.nl-header h2 {
+	.nl-head-text {
+		flex: 1;
+		min-width: 260px;
+	}
+	.nl-head h2 {
 		margin: 0;
-		font-size: 1.05rem;
-		color: #0f172a;
+		font-size: 1.2rem;
 	}
 	.nl-subtitle {
-		margin: 0.25rem 0 0.65rem 0;
-		font-size: 0.85rem;
+		margin: 0.25rem 0 0.8rem 0;
+		max-width: 80ch;
+		font-size: 0.88rem;
 		color: var(--muted);
 	}
-	.llm-badge {
-		font-size: 0.75rem;
-		font-weight: 700;
-		padding: 0.2rem 0.55rem;
-		border-radius: 999px;
-		border: 1px solid;
+	.engine-tag {
+		font-family: var(--mono);
+		font-size: 0.72rem;
+		padding: 0.15rem 0.5rem;
+		border: 1px solid currentColor;
+		white-space: nowrap;
 	}
-	.llm-online {
-		background: #dcfce7;
-		color: #166534;
-		border-color: #86efac;
+	.engine-llm {
+		color: var(--low-text);
+		background: var(--low-bg);
 	}
-	.llm-fallback {
-		background: #f1f5f9;
-		color: #334155;
-		border-color: #cbd5e1;
+	.engine-rules {
+		color: var(--ink-2);
+		background: var(--paper);
 	}
 	.nl-input-row {
 		display: flex;
 		gap: 0.5rem;
 		flex-wrap: wrap;
 	}
-	.nl-input-row input {
+	.prompt {
 		flex: 1;
 		min-width: 240px;
-		padding: 0.6rem 0.85rem;
-		font-size: 0.95rem;
-		border: 1.5px solid #64748b;
-		border-radius: 0.5rem;
+		display: flex;
+		align-items: center;
+		background: var(--paper);
+		border: 1.5px solid var(--ink);
+		border-radius: 2px;
 	}
-	.nl-input-row input:focus {
-		outline: 3px solid #93c5fd;
-		border-color: var(--primary);
+	.prompt:focus-within {
+		outline: 3px solid #f0c9a8;
+		border-color: var(--accent-ink);
 	}
-	.btn-primary {
-		padding: 0.6rem 1.1rem;
+	.prompt-sign {
+		padding: 0 0.2rem 0 0.75rem;
+		font-family: var(--mono);
+		font-size: 1.15rem;
 		font-weight: 700;
-		background: #1d4ed8;
-		color: #ffffff;
-		border: 1px solid #1e40af;
-		border-radius: 0.5rem;
-		cursor: pointer;
+		color: var(--accent);
 	}
-	.btn-primary:hover:not(:disabled) {
-		background: #1e40af;
+	.prompt input {
+		flex: 1;
+		min-width: 0;
+		min-height: 2.5rem;
+		padding: 0.5rem 0.75rem 0.5rem 0.4rem;
+		border: none;
+		background: transparent;
+		font-family: var(--sans);
+		font-size: 0.95rem;
+		color: var(--ink);
 	}
-	.btn-primary:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
+	.prompt input::placeholder {
+		color: #77725f;
+		font-family: var(--sans);
 	}
-	.btn-small {
-		padding: 0.35rem 0.7rem;
-		font-size: 0.82rem;
-		font-weight: 600;
-		background: #eff6ff;
-		color: #1e3a8a;
-		border: 1px solid #93c5fd;
-		border-radius: 0.375rem;
-		cursor: pointer;
-	}
-	.btn-small:hover {
-		background: #dbeafe;
+	.prompt input:focus {
+		outline: none;
 	}
 	.nl-examples {
 		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.4rem;
-		margin-top: 0.6rem;
+		flex-direction: column;
+		gap: 0.45rem;
+		margin-top: 0.85rem;
 	}
 	.examples-label {
-		font-size: 0.8rem;
-		font-weight: 600;
+		font-size: 0.74rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
 		color: var(--muted);
 	}
-	.example-chip {
-		background: #f8fafc;
-		color: #334155;
-		border: 1px solid #cbd5e1;
-		border-radius: 0.375rem;
-		padding: 0.25rem 0.55rem;
-		font-size: 0.78rem;
-		cursor: pointer;
-		text-align: left;
+	.example-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.45rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
-	.example-chip:hover {
-		background: #eff6ff;
-		border-color: #93c5fd;
-		color: #1e3a8a;
+	.example {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.35rem;
+		min-height: 1.95rem;
+		padding: 0.3rem 0.65rem;
+		font-family: var(--serif);
+		font-style: italic;
+		font-size: 0.85rem;
+		color: var(--ink-2);
+		background: var(--surface);
+		border: 1px dashed #8c826e;
+		border-radius: 2px;
+		text-align: left;
+		cursor: pointer;
+		transition: all 0.12s ease;
+		line-height: 1.35;
+	}
+	.example::before {
+		content: '↳';
+		font-family: var(--mono);
+		font-style: normal;
+		font-size: 0.82rem;
+		color: var(--accent);
+		flex: none;
+	}
+	.example:hover {
+		background: var(--paper-2);
+		border-style: solid;
+		border-color: var(--accent-ink);
+		color: var(--ink);
+		box-shadow: 2px 2px 0 rgba(29, 28, 26, 0.08);
 	}
 	.nl-error {
-		margin-top: 0.6rem;
+		margin-top: 0.75rem;
 		padding: 0.6rem 0.85rem;
 		background: var(--high-bg);
-		border: 1px solid var(--high-border);
+		border: 1.5px solid var(--high-border);
 		color: var(--high-text);
-		border-radius: 0.5rem;
 		font-size: 0.88rem;
 	}
-	.nl-result-box {
-		margin-top: 0.85rem;
-		padding: 0.9rem 1rem;
-		background: #f8fafc;
-		border: 1px solid #cbd5e1;
-		border-radius: 0.6rem;
+	.nl-result {
+		margin-top: 1rem;
+		padding-top: 0.9rem;
+		border-top: 1px solid var(--rule);
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
+		gap: 0.9rem;
 	}
-	.nl-meta-bar {
+	.nl-meta {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.6rem;
-		font-size: 0.88rem;
+		align-items: flex-end;
+		gap: 0.6rem 2rem;
+		margin: 0;
+		font-size: 0.9rem;
 	}
-	.meta-item {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		flex-wrap: wrap;
-	}
-	.meta-label {
+	.nl-meta dt {
+		font-size: 0.7rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
 		color: var(--muted);
+	}
+	.nl-meta dd {
+		margin: 0.1rem 0 0 0;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.5rem;
+		font-weight: 600;
+	}
+	.meta-action {
+		margin-left: auto;
 	}
 	.region-name {
 		text-transform: capitalize;
 	}
-	.coverage-pill {
-		font-size: 0.75rem;
-		font-weight: 700;
-		padding: 0.15rem 0.5rem;
-		border-radius: 999px;
+	.coverage {
+		font-family: var(--mono);
+		font-size: 0.72rem;
+		font-weight: 400;
+		padding: 0.05rem 0.4rem;
+		border: 1px solid currentColor;
 	}
 	.cov-banovina {
-		background: #dcfce7;
-		color: #166534;
+		color: var(--low-text);
+		background: var(--low-bg);
 	}
 	.cov-croatia {
-		background: #dbeafe;
-		color: #1e40af;
+		color: var(--none-text);
+		background: var(--none-bg);
 	}
 	.nl-warnings {
-		padding: 0.65rem 0.85rem;
-		background: #fffbeb;
-		border: 1px solid #f59e0b;
-		color: #92400e;
-		border-radius: 0.5rem;
+		padding: 0.6rem 0.85rem;
+		background: var(--med-bg);
+		border-left: 4px solid var(--med-border);
+		color: var(--med-text);
 		font-size: 0.86rem;
 	}
 	.nl-warnings ul {
-		margin: 0.35rem 0 0 0;
+		margin: 0.3rem 0 0 0;
 		padding-left: 1.2rem;
 	}
-	.h3-grid-banner {
-		padding: 0.7rem 0.85rem;
-		background: #f0fdf4;
-		border: 1.5px solid #86efac;
-		border-radius: 0.5rem;
-		font-size: 0.86rem;
-		color: #14532d;
+	.h3-panel {
 		display: flex;
 		flex-direction: column;
-		gap: 0.45rem;
+		gap: 0.6rem;
+		padding: 0.85rem 1rem;
+		background: var(--paper);
+		border: 1px solid var(--hair);
+		font-size: 0.86rem;
 	}
-	.h3-banner-top {
+	.h3-top {
 		display: flex;
 		flex-wrap: wrap;
-		justify-content: space-between;
-		align-items: center;
-		gap: 0.5rem;
+		gap: 0.5rem 2.5rem;
 	}
-	.h3-toggles {
+	.h3-figure {
+		display: flex;
+		flex-direction: column;
+	}
+	.h3-big {
+		font-family: var(--serif);
+		font-size: 1.9rem;
+		font-weight: 700;
+		line-height: 1;
+		color: var(--low-text);
+	}
+	.h3-of {
+		font-size: 1rem;
+		color: var(--muted);
+		font-weight: 400;
+	}
+	.h3-cap {
+		margin-top: 0.2rem;
+		font-size: 0.8rem;
+		color: var(--muted);
+	}
+	.h3-controls {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.75rem;
+		gap: 0.4rem 1.25rem;
 	}
 	.h3-toggle {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: 0.4rem;
+		min-height: 1.75rem;
 		font-weight: 600;
-		font-size: 0.8rem;
 		cursor: pointer;
 	}
-	.h3-legend-row {
+	.h3-toggle input {
+		width: 1.15rem;
+		height: 1.15rem;
+		margin: 0;
+		accent-color: var(--ink);
+	}
+	.h3-legend {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 1rem;
+		gap: 0.3rem 1.25rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
 		font-size: 0.8rem;
-		font-weight: 600;
 	}
-	.h3-swatch-item {
+	.h3-legend li {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: 0.4rem;
 	}
 	.h3-sw {
-		width: 1rem;
-		height: 0.75rem;
-		border-radius: 0.15rem;
+		width: 1.1rem;
+		height: 0.8rem;
 		display: inline-block;
 	}
 	.h3-sw-match {
-		background: rgba(22, 163, 74, 0.55);
-		border: 1.5px solid #15803d;
+		background: rgba(77, 107, 34, 0.5);
+		border: 1.5px solid #3a5219;
 	}
 	.h3-sw-excl {
-		background: rgba(220, 38, 38, 0.28);
-		border: 1.5px solid #b91c1c;
+		background: rgba(158, 42, 20, 0.22);
+		border: 1.5px solid #7d200f;
+	}
+	.h3-res {
+		color: var(--muted);
 	}
 	.h3-odbl {
 		margin: 0;
 		font-size: 0.76rem;
-		color: #166534;
+		color: var(--muted);
 	}
-	.nl-intent-card {
+	.nl-intent {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.5rem;
-		padding: 0.6rem 0.8rem;
-		background: #ffffff;
-		border: 1px solid #e2e8f0;
-		border-radius: 0.45rem;
-		font-size: 0.88rem;
+		padding: 0.6rem 0;
+		border-top: 1px solid var(--hair);
+		border-bottom: 1px solid var(--hair);
+		font-size: 0.9rem;
 	}
-	.compare-chips {
+	.compare-list {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.4rem;
 	}
-	.chip {
-		background: #eff6ff;
-		color: #1e3a8a;
-		border: 1px solid #93c5fd;
-		border-radius: 999px;
-		padding: 0.25rem 0.7rem;
-		font-size: 0.82rem;
-		font-weight: 600;
-		cursor: pointer;
-	}
-	.nl-filters-section {
+	.nl-filters {
 		display: flex;
 		flex-direction: column;
-		gap: 0.55rem;
+		gap: 0.6rem;
 	}
 	.filters-title {
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: space-between;
 		align-items: baseline;
-		gap: 0.5rem;
-		font-size: 0.86rem;
+		gap: 0.25rem 1rem;
+		font-size: 0.9rem;
+	}
+	.count {
+		font-family: var(--mono);
+		font-weight: 400;
+		color: var(--muted);
 	}
 	.filters-hint {
 		font-size: 0.78rem;
 		color: var(--muted);
 	}
-	.filter-chips {
+	.filter-list {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.45rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
-	.filter-chip {
+	.filter {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
-		padding: 0.3rem 0.6rem;
-		background: #ffffff;
-		border: 1.5px solid #2563eb;
-		border-radius: 999px;
-		font-size: 0.82rem;
-		color: #1e293b;
+		gap: 0.5rem;
+		padding: 0.2rem 0.25rem 0.2rem 0.2rem;
+		background: var(--paper);
+		border: 1px solid var(--ink);
+		font-size: 0.84rem;
 	}
-	.chip-remove {
-		border: none;
-		background: #e2e8f0;
-		color: #0f172a;
-		border-radius: 999px;
-		width: 1.25rem;
-		height: 1.25rem;
+	.filter .hz-code {
+		height: 1.35rem;
+		min-width: 1.9rem;
+		font-size: 0.7rem;
+		border-width: 1px;
+	}
+	.filter-remove {
+		width: 1.6rem;
+		height: 1.6rem;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		font-weight: 800;
+		border: none;
+		border-left: 1px solid var(--hair);
+		background: transparent;
+		color: var(--ink);
+		font-size: 1.05rem;
 		cursor: pointer;
-		margin-left: 0.15rem;
 	}
-	.chip-remove:hover {
-		background: #cbd5e1;
+	.filter-remove:hover {
+		background: var(--high-bg);
+		color: var(--high-text);
 	}
 	.no-filters-msg {
 		margin: 0;
-		font-size: 0.84rem;
+		font-size: 0.86rem;
 		color: var(--muted);
 	}
 	.manual-filter-bar {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.6rem;
-		padding-top: 0.4rem;
-		border-top: 1px dashed #cbd5e1;
-		font-size: 0.82rem;
+		align-items: flex-end;
+		gap: 0.6rem 1rem;
+		padding-top: 0.6rem;
+		border-top: 1px dashed var(--hair);
+		font-size: 0.84rem;
 	}
 	.manual-filter-bar label {
 		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		font-weight: 600;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+	.manual-filter-bar label span {
+		font-size: 0.7rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--muted);
 	}
 	.manual-filter-bar select {
-		padding: 0.25rem 0.45rem;
-		border: 1px solid #94a3b8;
-		border-radius: 0.35rem;
-		font-size: 0.82rem;
-		background: #ffffff;
+		min-height: 2rem;
+		padding: 0.25rem 0.5rem;
+		border: 1px solid var(--ink);
+		border-radius: 2px;
+		font-family: var(--sans);
+		font-size: 0.85rem;
+		background: var(--surface);
+		color: var(--ink);
 	}
 	.json-details {
 		font-size: 0.8rem;
@@ -778,15 +845,14 @@
 	}
 	.json-details summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-family: var(--mono);
 	}
 	.json-details pre {
 		margin: 0.4rem 0 0 0;
-		padding: 0.65rem;
-		background: #0f172a;
-		color: #e2e8f0;
-		border-radius: 0.4rem;
+		padding: 0.75rem;
+		background: var(--ink);
+		color: #e9e2d0;
 		overflow-x: auto;
-		font-size: 0.78rem;
+		font-size: 0.76rem;
 	}
 </style>

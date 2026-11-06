@@ -5,7 +5,7 @@
 	import MapLayers from '$lib/MapLayers.svelte';
 	import NLQueryBox from '$lib/NLQueryBox.svelte';
 	import ReportAssistant from '$lib/ReportAssistant.svelte';
-	import { HAZARD_META, LEVEL_META, FLOOD_DEPTH_TEXT, PRESET_LOCATIONS, fmt } from '$lib/labels.js';
+	import { HAZARD_META, LEVEL_META, FLOOD_DEPTH_TEXT, PRESET_LOCATIONS, fmt, dms } from '$lib/labels.js';
 
 	let searchQuery = $state('');
 	let suggestions = $state([]);
@@ -199,8 +199,8 @@
 					'fill-color': [
 						'case',
 						['boolean', ['get', 'matched'], false],
-						'#16a34a',
-						'#dc2626'
+						'#4d6b22',
+						'#9e2a14'
 					],
 					'fill-opacity': [
 						'case',
@@ -219,8 +219,8 @@
 					'line-color': [
 						'case',
 						['boolean', ['get', 'matched'], false],
-						'#15803d',
-						'#b91c1c'
+						'#3a5219',
+						'#7d200f'
 					],
 					'line-width': [
 						'case',
@@ -291,7 +291,7 @@
 		});
 		map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-		marker = new maplibregl.Marker({ color: '#1d4ed8' }).setLngLat([lon, lat]).addTo(map);
+		marker = new maplibregl.Marker({ color: '#b0401b' }).setLngLat([lon, lat]).addTo(map);
 		const markerEl = marker.getElement();
 		markerEl.setAttribute('role', 'img');
 		markerEl.setAttribute('aria-label', 'Odabrana lokacija');
@@ -314,21 +314,24 @@
 	});
 </script>
 
-<section class="search-panel no-print" aria-label="Pretraga lokacije">
-	<div class="search-header">
+<section class="hero no-print" aria-label="Pretraga lokacije">
+	<div class="hero-copy">
+		<p class="label">List 01 — Izvještaj po lokaciji</p>
 		<h1>Provjerite izloženost lokacije poplavama, potresu i geohazardima</h1>
-		<p>
+		<p class="hero-lede">
 			Unesite adresu u Hrvatskoj (iz službenog registra DGU Adrese INSPIRE), kliknite na kartu ili pretražujte područja prirodnim jezikom.
 		</p>
 	</div>
 
 	<div class="search-box-wrap">
-		<label for="address-input" class="sr-only">Unesite adresu ili naselje</label>
+		<label for="address-input" class="label search-label">Adresa ili naselje</label>
 		<div class="search-input-row">
+			<div class="input-anchor">
 			<input
 				id="address-input"
+				class="field field-lg"
 				type="search"
-				placeholder="Upišite ulicu, kućni broj i naselje..."
+				placeholder="Ulica, kućni broj, naselje"
 				value={searchQuery}
 				oninput={onSearchInput}
 				onkeydown={(e) => {
@@ -337,13 +340,35 @@
 				onfocus={() => (showSuggestions = suggestions.length > 0)}
 				autocomplete="off"
 			/>
+				{#if showSuggestions && suggestions.length > 0}
+					<ul class="suggestions-list" aria-label="Predložene adrese">
+						{#each suggestions as item}
+							<li>
+								<button
+									type="button"
+									onclick={() => selectAddress(item)}
+									onkeydown={(e) => {
+										if (e.key === 'Escape') showSuggestions = false;
+									}}
+								>
+									<span>{item.label}</span>
+									<span class="sugg-coords">{fmt(item.lat, 4)}; {fmt(item.lon, 4)}</span>
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
 			<button
 				type="button"
-				class="btn-secondary"
+				class="btn btn-ghost"
 				disabled={loading || !report || !!errorMsg}
 				onclick={() => window.print()}
 			>
-				<span aria-hidden="true">🖨️</span> Ispis / PDF
+				<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+					<path d="M5 7V2h10v5M5 15H2V8h16v7h-3M5 12h10v6H5z" fill="none" stroke="currentColor" stroke-width="1.6" />
+				</svg>
+				Ispis / PDF
 			</button>
 		</div>
 
@@ -353,286 +378,312 @@
 			</p>
 		{/if}
 
-		{#if showSuggestions && suggestions.length > 0}
-			<ul
-				class="suggestions-list"
-				aria-label="Predložene adrese"
-				onkeydown={(e) => {
-					if (e.key === 'Escape') showSuggestions = false;
-				}}
-			>
-				{#each suggestions as item}
-					<li>
-						<button type="button" onclick={() => selectAddress(item)}>
-							<strong>{item.label}</strong>
-							<span>({fmt(item.lat, 4)}; {fmt(item.lon, 4)})</span>
-						</button>
-					</li>
+
+
+		<div class="preset-bar">
+			<span class="preset-title">Testne lokacije:</span>
+			<div class="preset-chips">
+				{#each PRESET_LOCATIONS as p}
+					<button type="button" class="preset" onclick={() => selectPreset(p)}>
+						{p.name}
+					</button>
 				{/each}
-			</ul>
-		{/if}
+			</div>
+		</div>
 	</div>
-
-	<div class="preset-bar">
-		<span class="preset-title">Brzi odabir testnih lokacija:</span>
-		{#each PRESET_LOCATIONS as p}
-			<button type="button" class="chip" onclick={() => selectPreset(p)}>
-				{p.name}
-			</button>
-		{/each}
-	</div>
-
-	<NLQueryBox
-		onSelectRegion={handleSelectRegion}
-		onActivateLayer={handleActivateLayer}
-		onSearchLocationText={handleSearchLocationText}
-		onUpdateSearchGrid={handleUpdateSearchGrid}
-		{activeH3Tier}
-	/>
 </section>
+
+<NLQueryBox
+	onSelectRegion={handleSelectRegion}
+	onActivateLayer={handleActivateLayer}
+	onSearchLocationText={handleSearchLocationText}
+	onUpdateSearchGrid={handleUpdateSearchGrid}
+	{activeH3Tier}
+/>
 
 <div class="workspace-grid">
 	<section class="map-column no-print" aria-label="Interaktivna karta">
-		<div class="map-frame" bind:this={mapContainer}></div>
+		<div class="map-sheet">
+			<div class="map-frame" bind:this={mapContainer}></div>
+		</div>
+		<div class="map-caption">
+			<span>Kliknite bilo gdje na kartu unutar Republike Hrvatske za izvještaj za tu točku.</span>
+			<span class="map-caption-coords">{dms(lat, 'N', 'S')} · {dms(lon, 'E', 'W')}</span>
+		</div>
 		<MapLayers map={mapObj} {requestedLayer} />
-		<p class="map-hint">
-			Savjet: Kliknite bilo gdje na kartu unutar Republike Hrvatske za izračun izvještaja za tu točku.
-		</p>
 	</section>
 
 	<section class="report-column" aria-live="polite">
-		<div class="location-bar">
-			<div class="location-bar-header">
-				<span class="eyebrow">Izvještaj za odabranu lokaciju</span>
-				<span class="coords">WGS84: <code>{fmt(lat, 5)}; {fmt(lon, 5)}</code></span>
+		<div class="print-header only-print" aria-hidden="true">
+			<div class="print-meta-row">
+				<span>REPUBLIKA HRVATSKA · OTVORENI PODACI JAVNOG SEKTORA</span>
+				<span>WGS84 / EPSG:4326</span>
 			</div>
-			<h2>{selectedLabel}</h2>
+			<div class="print-brand-row">
+				<strong class="print-doc-title">Geo-rizik — Sažetak procjene prirodnih opasnosti</strong>
+				<span class="print-doc-date">Datum: {new Date().toLocaleDateString('hr-HR')}</span>
+			</div>
 		</div>
 
+		<header class="location-head">
+			<p class="label">Izvještaj za odabranu lokaciju</p>
+			<h2>{selectedLabel}</h2>
+			<p class="coords">
+				<span class="coords-dms">{dms(lat, 'N', 'S')}&ensp;{dms(lon, 'E', 'W')}</span>
+				<span class="coords-dec">WGS84 <code>{fmt(lat, 5)}; {fmt(lon, 5)}</code></span>
+			</p>
+		</header>
+
 		{#if loading}
-			<div class="status-card">Učitavanje izvještaja iz javnih servisa...</div>
+			<div class="status-line" role="status">
+				<span class="status-bar" aria-hidden="true"></span>
+				Učitavanje izvještaja iz javnih servisa…
+			</div>
 		{:else if errorMsg}
-			<div class="status-card status-error" role="alert">
+			<div class="status-error" role="alert">
 				<strong>Greška:</strong> {errorMsg}
 			</div>
 		{:else if report}
 			{@const top = report.most_significant}
 			{#if top}
 				{@const topMeta = LEVEL_META[top.level] || LEVEL_META.nema_podataka}
-				{@const topHazard = HAZARD_META[top.hazard] || { title: top.hazard, icon: '⚠️' }}
-				<div class="top-risk-banner tone-{topMeta.tone}">
-					<div class="top-risk-header">
-						<span class="badge tone-{topMeta.tone}">
-							<span aria-hidden="true">{topMeta.icon}</span> {topMeta.label}
-						</span>
-						<span class="top-risk-tag">Najznačajniji utvrđeni rizik</span>
+				{@const topHazard = HAZARD_META[top.hazard] || { title: top.hazard, code: '··' }}
+				<div class="verdict tone-{topMeta.tone}">
+					<div class="verdict-strip">
+						<span class="lvl-text">{topMeta.label}</span>
+						<span class="verdict-tag">Najznačajniji utvrđeni rizik</span>
 					</div>
-					<h3>{topHazard.icon} {topHazard.title}</h3>
-					{#if report.summary}
-						<p>{report.summary}</p>
-					{/if}
+					<div class="verdict-body">
+						<div class="verdict-title">
+							<span class="hz-code">{topHazard.code}</span>
+							<h3>{topHazard.title}</h3>
+							<span class="meter meter-{topMeta.tone}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+						</div>
+						{#if report.summary}
+							<p>{report.summary}</p>
+						{/if}
+					</div>
 				</div>
 			{:else if report.all_no_data}
-				<div class="top-risk-banner tone-nodata">
-					<div class="top-risk-header">
-						<span class="badge tone-nodata"><span aria-hidden="true">—</span> NEMA PODATAKA ZA OVU LOKACIJU</span>
+				<div class="verdict tone-nodata">
+					<div class="verdict-strip">
+						<span>Nema podataka za ovu lokaciju</span>
 					</div>
 					{#if report.summary}
-						<p>{report.summary}</p>
-					{/if}
-				</div>
-			{:else if report.hazards.some((x) => x.level === 'nema_podataka')}
-				<div class="top-risk-banner tone-none">
-					<div class="top-risk-header">
-						<span class="badge tone-none"><span aria-hidden="true">○</span> NEMA UTVRĐENE POVIŠENE OPASNOSTI</span>
-					</div>
-					<h3>Prema dostupnim kartama nije utvrđen povišeni rizik</h3>
-					{#if report.summary}
-						<p>{report.summary}</p>
+						<div class="verdict-body"><p>{report.summary}</p></div>
 					{/if}
 				</div>
 			{:else}
-				<div class="top-risk-banner tone-none">
-					<div class="top-risk-header">
-						<span class="badge tone-none"><span aria-hidden="true">✓</span> NEMA UTVRĐENE POVIŠENE OPASNOSTI</span>
+				<div class="verdict tone-none">
+					<div class="verdict-strip">
+						<span>Nema utvrđene povišene opasnosti</span>
 					</div>
-					<h3>Prema dostupnim kartama nije utvrđen povišeni rizik</h3>
-					{#if report.summary}
-						<p>{report.summary}</p>
-					{/if}
+					<div class="verdict-body">
+						<div class="verdict-title">
+							<h3>Prema dostupnim kartama nije utvrđen povišeni rizik</h3>
+						</div>
+						{#if report.summary}
+							<p>{report.summary}</p>
+						{/if}
+					</div>
 				</div>
 			{/if}
 
 			{#if availableHazards.length > 0}
-				<div class="section-header">
-					<h3>Utvrđene razine po vrstama opasnosti ({availableHazards.length})</h3>
-					<span class="section-sub">Detaljna procjena iz dostupnih izvora za odabranu točku</span>
+				<div class="section-head">
+					<h3>Utvrđene razine po vrstama opasnosti</h3>
+					<span class="section-count">{String(availableHazards.length).padStart(2, '0')}</span>
 				</div>
-				<div class="cards-list">
+				<p class="section-sub">Detaljna procjena iz dostupnih izvora za odabranu točku</p>
+				<ol class="ledger">
 					{#each availableHazards as h}
-						{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, subtitle: '', icon: 'ℹ️' }}
+						{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, subtitle: '', code: '··' }}
 						{@const lvl = LEVEL_META[h.level] || LEVEL_META.nema_podataka}
-						<article class="hazard-card tone-border-{lvl.tone}">
-							<div class="card-top">
-								<div>
-									<h3><span aria-hidden="true">{meta.icon}</span> {meta.title}</h3>
-									{#if meta.subtitle}
-										<p class="card-sub">{meta.subtitle}</p>
+						<li class="ledger-row">
+							<article>
+								<div class="row-top">
+									<span class="hz-code">{meta.code}</span>
+									<div class="row-title">
+										<h4>{meta.title}</h4>
+										{#if meta.subtitle}
+											<p class="row-sub">{meta.subtitle}</p>
+										{/if}
+									</div>
+									<div class="row-level level-{lvl.tone}">
+										<span class="meter meter-{lvl.tone}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+										<span class="lvl-text">{lvl.label}</span>
+									</div>
+								</div>
+
+								<div class="row-body">
+									{#if h.explanation}
+										<p class="row-explanation">{h.explanation}</p>
+									{/if}
+
+									{#if h.detail && h.hazard === 'flood' && h.level !== 'nema_podataka' && h.detail.velika !== undefined}
+										<dl class="detail-grid">
+											<div>
+												<dt>Velika vjerojatnost</dt>
+												<dd>{FLOOD_DEPTH_TEXT[h.detail.velika] || h.detail.velika || 'nema podatka'}</dd>
+											</div>
+											<div>
+												<dt>Srednja vjerojatnost</dt>
+												<dd>{FLOOD_DEPTH_TEXT[h.detail.srednja] || h.detail.srednja || 'nema podatka'}</dd>
+											</div>
+											<div>
+												<dt>Mala vjerojatnost</dt>
+												<dd>{FLOOD_DEPTH_TEXT[h.detail.mala] || h.detail.mala || 'nema podatka'}</dd>
+											</div>
+										</dl>
+									{:else if h.detail && h.hazard === 'flood' && h.detail.rp10 !== undefined}
+										<dl class="detail-grid">
+											{#each [['10', h.detail.rp10], ['100', h.detail.rp100], ['500', h.detail.rp500]] as [rp, val]}
+												<div>
+													<dt>Povratno razdoblje {rp} god.</dt>
+													<dd>{val === null || val === undefined ? 'nema podatka' : `${fmt(val)} m`}</dd>
+												</div>
+											{/each}
+										</dl>
+									{:else if h.detail && h.hazard === 'seismic' && h.detail.ag_g !== undefined}
+										<dl class="detail-grid">
+											<div>
+												<dt>Vršno ubrzanje tla (ag, 475 god.)</dt>
+												<dd><strong>{fmt(h.detail.ag_g)} g</strong></dd>
+											</div>
+											{#if h.detail.udaljenost_km !== undefined && h.detail.udaljenost_km !== null}
+												<div>
+													<dt>Udaljenost do točke mreže</dt>
+													<dd>{fmt(h.detail.udaljenost_km)} km</dd>
+												</div>
+											{/if}
+										</dl>
+									{:else if h.detail && h.detail.podloznost}
+										<dl class="detail-grid">
+											<div>
+												<dt>Razred podložnosti u studiji</dt>
+												<dd><strong>{h.detail.podloznost}</strong></dd>
+											</div>
+										</dl>
+									{:else if h.detail && h.detail.dubina_do !== undefined}
+										<dl class="detail-grid">
+											<div>
+												<dt>Dubina do podzemne vode</dt>
+												<dd><strong>{fmt(h.detail.dubina_do)} m</strong></dd>
+											</div>
+											{#if h.detail.udaljenost_m !== undefined && h.detail.udaljenost_m !== null}
+												<div>
+													<dt>Udaljenost bušotine</dt>
+													<dd>{fmt(h.detail.udaljenost_m)} m</dd>
+												</div>
+											{/if}
+										</dl>
+									{/if}
+
+									{#if h.notes && h.notes.length > 0}
+										<ul class="row-notes">
+											{#each h.notes as note}
+												<li>{note}</li>
+											{/each}
+										</ul>
+									{/if}
+
+									{#if h.source && h.source.title}
+										<footer class="row-source">
+											<span>
+												<span class="src-key">Izvor</span>
+												{[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
+												{#if h.source.year || h.source.resolution}
+													({[h.source.year, h.source.resolution && `rezolucija: ${h.source.resolution}`]
+														.filter(Boolean)
+														.join(', ')})
+												{/if}
+											</span>
+											{#if h.source.licence}<span><span class="src-key">Licenca</span> {h.source.licence}</span>{/if}
+											{#if h.source.url && h.source.url !== 'TBD'}
+												<a href={h.source.url} target="_blank" rel="noopener noreferrer">Poveznica na izvor ↗</a>
+											{/if}
+											{#if h.source.note}
+												<span class="source-note">{h.source.note}</span>
+											{/if}
+										</footer>
 									{/if}
 								</div>
-								<span class="badge tone-{lvl.tone}">
-									<span aria-hidden="true">{lvl.icon}</span> {lvl.label}
-								</span>
-							</div>
-
-							{#if h.explanation}
-								<p class="card-explanation">{h.explanation}</p>
-							{/if}
-
-							{#if h.detail && h.hazard === 'flood' && h.level !== 'nema_podataka' && h.detail.velika !== undefined}
-								<dl class="detail-grid">
-									<div>
-										<dt>Velika vjerojatnost:</dt>
-										<dd>{FLOOD_DEPTH_TEXT[h.detail.velika] || h.detail.velika || 'nema podatka'}</dd>
-									</div>
-									<div>
-										<dt>Srednja vjerojatnost:</dt>
-										<dd>{FLOOD_DEPTH_TEXT[h.detail.srednja] || h.detail.srednja || 'nema podatka'}</dd>
-									</div>
-									<div>
-										<dt>Mala vjerojatnost:</dt>
-										<dd>{FLOOD_DEPTH_TEXT[h.detail.mala] || h.detail.mala || 'nema podatka'}</dd>
-									</div>
-								</dl>
-							{:else if h.detail && h.hazard === 'flood' && h.detail.rp10 !== undefined}
-								<dl class="detail-grid">
-									{#each [['10', h.detail.rp10], ['100', h.detail.rp100], ['500', h.detail.rp500]] as [rp, val]}
-										<div>
-											<dt>Povratno razdoblje {rp} god.:</dt>
-											<dd>{val === null || val === undefined ? 'nema podatka' : `${fmt(val)} m`}</dd>
-										</div>
-									{/each}
-								</dl>
-							{:else if h.detail && h.hazard === 'seismic' && h.detail.ag_g !== undefined}
-								<dl class="detail-grid">
-									<div>
-										<dt>Vršno ubrzanje tla (ag, 475 god.):</dt>
-										<dd><strong>{fmt(h.detail.ag_g)} g</strong></dd>
-									</div>
-									{#if h.detail.udaljenost_km !== undefined && h.detail.udaljenost_km !== null}
-										<div>
-											<dt>Udaljenost do točke mreže:</dt>
-											<dd>{fmt(h.detail.udaljenost_km)} km</dd>
-										</div>
-									{/if}
-								</dl>
-							{:else if h.detail && h.detail.podloznost}
-								<dl class="detail-grid">
-									<div>
-										<dt>Razred podložnosti u studiji:</dt>
-										<dd><strong>{h.detail.podloznost}</strong></dd>
-									</div>
-								</dl>
-							{:else if h.detail && h.detail.dubina_do !== undefined}
-								<dl class="detail-grid">
-									<div>
-										<dt>Dubina do podzemne vode:</dt>
-										<dd><strong>{fmt(h.detail.dubina_do)} m</strong></dd>
-									</div>
-									{#if h.detail.udaljenost_m !== undefined && h.detail.udaljenost_m !== null}
-										<div>
-											<dt>Udaljenost bušotine:</dt>
-											<dd>{fmt(h.detail.udaljenost_m)} m</dd>
-										</div>
-									{/if}
-								</dl>
-							{/if}
-
-							{#if h.notes && h.notes.length > 0}
-								<ul class="card-notes">
-									{#each h.notes as note}
-										<li>{note}</li>
-									{/each}
-								</ul>
-							{/if}
-
-							{#if h.source && h.source.title}
-								<footer class="card-source">
-									<span>
-										<strong>Izvor:</strong>
-										{[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
-										{#if h.source.year || h.source.resolution}
-											({[h.source.year, h.source.resolution && `rezolucija: ${h.source.resolution}`]
-												.filter(Boolean)
-												.join(', ')})
-										{/if}
-									</span>
-									{#if h.source.licence}<span><strong>Licenca:</strong> {h.source.licence}</span>{/if}
-									{#if h.source.url && h.source.url !== 'TBD'}
-										<a href={h.source.url} target="_blank" rel="noopener noreferrer">Poveznica na izvor ↗</a>
-									{/if}
-									{#if h.source.note}
-										<span class="source-note">{h.source.note}</span>
-									{/if}
-								</footer>
-							{/if}
-						</article>
+							</article>
+						</li>
 					{/each}
-				</div>
+				</ol>
 			{/if}
 
-			{#if noDataHazards.length > 0}
-				<div class="nodata-compact-box">
-					<div class="nodata-compact-title">
-						<span>Nedostupni podaci za ovu lokaciju ({noDataHazards.length})</span>
-						<span class="nodata-compact-subtitle">
-							Izvor podataka ne pokriva ovu točku ili je servis privremeno nedostupan
-						</span>
-					</div>
-					<div class="nodata-pills">
-						{#each noDataHazards as h}
-							{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, icon: '○' }}
-							{@const reasonText =
-								h.notes && h.notes.length > 0 ? h.notes.join(' ') : h.explanation || ''}
-							<div class="nodata-pill">
-								<div class="nodata-pill-main">
-									<div class="nodata-pill-header">
-										<span class="nodata-pill-icon" aria-hidden="true">{meta.icon}</span>
-										<span class="nodata-pill-name">{meta.title}</span>
-									</div>
-									{#if reasonText}
-										<p class="nodata-pill-reason">{reasonText}</p>
-									{/if}
-									{#if h.source && h.source.title}
-										<span class="nodata-pill-source">
-											Izvor: {[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
-											{#if h.source.year}({h.source.year}.){/if}
-										</span>
-									{/if}
-								</div>
-								<span class="nodata-pill-tag">Nema podataka</span>
+			{#snippet nodataListContent()}
+				<p class="nodata-subtitle">
+					Izvor podataka ne pokriva ovu točku ili je servis privremeno nedostupan.
+				</p>
+				<ul class="nodata-list">
+					{#each noDataHazards as h}
+						{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, code: '··' }}
+						{@const reasonText =
+							h.notes && h.notes.length > 0 ? h.notes.join(' ') : h.explanation || ''}
+						<li class="nodata-item">
+							<span class="hz-code hz-code-muted">{meta.code}</span>
+							<div class="nodata-main">
+								<span class="nodata-name">{meta.title}</span>
+								{#if reasonText}
+									<p class="nodata-reason">{reasonText}</p>
+								{/if}
+								{#if h.source && h.source.title}
+									<span class="nodata-source">
+										Izvor: {[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
+										{#if h.source.year}({h.source.year}.){/if}
+									</span>
+								{/if}
 							</div>
-						{/each}
+							<span class="nodata-tag">Nema podataka</span>
+						</li>
+					{/each}
+				</ul>
+			{/snippet}
+
+			{#if noDataHazards.length > 0}
+				<!-- Na ekranu: interaktivni sklopivi detalji -->
+				<details class="nodata-box no-print" open={availableHazards.length === 0}>
+					<summary>
+						<span class="nodata-title">Nedostupni podaci za ovu lokaciju</span>
+						<span class="section-count">{String(noDataHazards.length).padStart(2, '0')}</span>
+					</summary>
+					{@render nodataListContent()}
+				</details>
+
+				<!-- Za ispis / PDF (A4): uvijek otvorena lista sa sažetim popisom u istom formatu -->
+				<section class="nodata-box nodata-print-box only-print" aria-label="Nedostupni podaci za ovu lokaciju">
+					<div class="nodata-print-head">
+						<span class="nodata-title">Nedostupni podaci za ovu lokaciju</span>
+						<span class="section-count">{String(noDataHazards.length).padStart(2, '0')}</span>
 					</div>
-				</div>
+					{@render nodataListContent()}
+				</section>
 			{/if}
 
 			<ReportAssistant {report} />
 
 			{#if report.recommended_actions && report.recommended_actions.length > 0}
 				<section class="actions-section" aria-label="Preporučeni koraci">
-					<h3>Preporučeni sljedeći koraci i nadležne institucije</h3>
-					<div class="actions-grid">
-						{#each report.recommended_actions as act}
-							<div class="action-card">
-								<h4>{act.title}</h4>
-								<p>{act.description}</p>
-								<a href={act.url} target="_blank" rel="noopener noreferrer">
-									{act.institution} ↗
-								</a>
-							</div>
-						{/each}
+					<div class="section-head">
+						<h3>Preporučeni sljedeći koraci i nadležne institucije</h3>
 					</div>
+					<ol class="actions-list">
+						{#each report.recommended_actions as act, i}
+							<li>
+								<span class="action-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+								<div>
+									<h4>{act.title}</h4>
+									<p>{act.description}</p>
+									<a href={act.url} target="_blank" rel="noopener noreferrer">
+										{act.institution} ↗
+									</a>
+								</div>
+							</li>
+						{/each}
+					</ol>
 				</section>
 			{/if}
 
@@ -644,68 +695,62 @@
 </div>
 
 <style>
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		border: 0;
-	}
-	.search-panel {
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 0.75rem;
-		padding: 1.25rem;
+	/* ---------- Hero / search ---------- */
+	.hero {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 1.25rem 3rem;
+		padding-bottom: 1.5rem;
 		margin-bottom: 1.25rem;
-		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+		border-bottom: 1px solid var(--rule);
 	}
-	.search-header h1 {
-		margin: 0 0 0.25rem 0;
-		font-size: 1.35rem;
+	@media (min-width: 1100px) {
+		.hero {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+			align-items: end;
+		}
 	}
-	.search-header p {
-		margin: 0 0 0.85rem 0;
-		color: var(--muted);
-		font-size: 0.95rem;
+	.hero-copy .label {
+		margin: 0 0 0.6rem 0;
+		color: var(--accent-ink);
+	}
+	.hero h1 {
+		margin: 0;
+		font-size: clamp(1.7rem, 1.1rem + 2vw, 2.6rem);
+		line-height: 1.08;
+		max-width: 20ch;
+		text-wrap: balance;
+	}
+	.hero-lede {
+		margin: 0.85rem 0 0 0;
+		max-width: 56ch;
+		color: var(--ink-2);
+		font-size: 1rem;
 	}
 	.search-box-wrap {
 		position: relative;
+	}
+	.search-label {
+		display: block;
+		margin-bottom: 0.35rem;
 	}
 	.search-input-row {
 		display: flex;
 		gap: 0.5rem;
 		flex-wrap: wrap;
 	}
-	.search-input-row input {
+	.input-anchor {
+		position: relative;
 		flex: 1;
 		min-width: 240px;
-		padding: 0.7rem 0.9rem;
-		font-size: 1rem;
-		border: 2px solid #64748b;
-		border-radius: 0.5rem;
 	}
-	.search-input-row input:focus {
-		outline: 3px solid #93c5fd;
-		border-color: var(--primary);
+	.field-lg {
+		min-height: 3.1rem;
+		font-size: 1.08rem;
+		border-width: 2px;
 	}
-	.btn-secondary {
-		padding: 0.7rem 1rem;
-		font-weight: 600;
-		background: #f1f5f9;
-		color: var(--text);
-		border: 1px solid #64748b;
-		border-radius: 0.5rem;
-		cursor: pointer;
-	}
-	.btn-secondary:hover:not(:disabled) {
-		background: #e2e8f0;
-	}
-	.btn-secondary:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
+	.search-input-row .btn {
+		min-height: 3.1rem;
 	}
 	.suggestions-list {
 		position: absolute;
@@ -713,74 +758,110 @@
 		top: 100%;
 		left: 0;
 		right: 0;
-		margin: 0.25rem 0 0 0;
+		margin: 0;
 		padding: 0;
 		list-style: none;
-		background: #ffffff;
-		border: 2px solid var(--primary);
-		border-radius: 0.5rem;
-		box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
-		max-height: 280px;
+		background: var(--surface);
+		border: 2px solid var(--ink);
+		border-top-width: 0;
+		box-shadow: 6px 6px 0 rgba(29, 28, 26, 0.12);
+		max-height: 300px;
 		overflow-y: auto;
 	}
 	.suggestions-list button {
 		width: 100%;
 		text-align: left;
-		padding: 0.65rem 0.9rem;
+		padding: 0.6rem 0.85rem;
 		border: none;
-		border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--hair);
 		background: transparent;
+		color: var(--ink);
 		cursor: pointer;
 		display: flex;
 		justify-content: space-between;
 		gap: 1rem;
+		font-family: var(--sans);
 		font-size: 0.95rem;
 	}
-	.suggestions-list button:hover {
-		background: #eff6ff;
+	.suggestions-list button:hover,
+	.suggestions-list button:focus-visible {
+		background: var(--paper-2);
+	}
+	.sugg-coords {
+		font-family: var(--mono);
+		font-size: 0.78rem;
+		color: var(--muted);
+		white-space: nowrap;
 	}
 	.preset-bar {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.45rem;
+		gap: 0.45rem 0.75rem;
 		margin-top: 0.85rem;
 	}
 	.preset-title {
-		font-size: 0.85rem;
-		font-weight: 600;
+		font-family: var(--sans);
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 		color: var(--muted);
+		white-space: nowrap;
 	}
-	.chip {
-		background: #eff6ff;
-		color: #1e3a8a;
-		border: 1px solid #93c5fd;
-		border-radius: 999px;
-		padding: 0.25rem 0.7rem;
+	.preset-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+	.preset {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		min-height: 1.85rem;
+		padding: 0.2rem 0.65rem;
+		font-family: var(--sans);
 		font-size: 0.82rem;
 		font-weight: 600;
+		color: var(--ink-2);
+		background: var(--surface);
+		border: 1px dashed #8c826e;
+		border-radius: 2px;
 		cursor: pointer;
+		transition: all 0.12s ease;
+		white-space: nowrap;
 	}
-	.chip:hover {
-		background: #dbeafe;
+	.preset::before {
+		content: '⌖';
+		font-size: 0.85rem;
+		color: var(--accent);
+		line-height: 1;
 	}
+	.preset:hover {
+		background: var(--paper-2);
+		border-style: solid;
+		border-color: var(--accent-ink);
+		color: var(--accent-ink);
+		box-shadow: 2px 2px 0 rgba(29, 28, 26, 0.08);
+	}
+	.geocoder-msg {
+		margin: 0.5rem 0 0 0;
+		font-size: 0.88rem;
+		color: var(--muted);
+	}
+
+	/* ---------- Workspace ---------- */
 	.workspace-grid {
 		display: grid;
 		grid-template-columns: 1fr;
-		gap: 1.5rem;
+		gap: 2rem;
+		margin-top: 1.5rem;
 	}
 	@media (min-width: 992px) {
 		.workspace-grid {
-			grid-template-columns: minmax(0, 1.3fr) minmax(380px, 1fr);
+			grid-template-columns: minmax(0, 1.25fr) minmax(400px, 1fr);
 			align-items: start;
 		}
-	}
-	.map-column {
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 0.75rem;
-		padding: 0.85rem;
-		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 	}
 	@media (min-width: 992px) {
 		.map-column {
@@ -789,17 +870,31 @@
 			max-height: calc(100vh - 2rem);
 			overflow-y: auto;
 			scrollbar-width: thin;
+			padding-right: 0.25rem;
 		}
 	}
 	.report-column {
 		min-width: 0;
 	}
+
+	/* Map sheet with graduated neatline, like a printed topographic sheet */
+	.map-sheet {
+		--tick: 28px;
+		position: relative;
+		padding: 7px;
+		border: 1.5px solid var(--ink);
+		background:
+			repeating-linear-gradient(90deg, var(--ink) 0 var(--tick), var(--surface) var(--tick) calc(var(--tick) * 2)) top / 100% 5px no-repeat,
+			repeating-linear-gradient(90deg, var(--ink) 0 var(--tick), var(--surface) var(--tick) calc(var(--tick) * 2)) bottom / 100% 5px no-repeat,
+			repeating-linear-gradient(180deg, var(--ink) 0 var(--tick), var(--surface) var(--tick) calc(var(--tick) * 2)) left / 5px 100% no-repeat,
+			repeating-linear-gradient(180deg, var(--ink) 0 var(--tick), var(--surface) var(--tick) calc(var(--tick) * 2)) right / 5px 100% no-repeat,
+			var(--surface);
+	}
 	.map-frame {
 		width: 100%;
-		height: clamp(420px, 56vh, 560px);
+		height: clamp(420px, 58vh, 600px);
 		min-height: 420px;
-		border-radius: 0.5rem;
-		border: 1px solid var(--border);
+		border: 1px solid var(--ink);
 	}
 	@media (max-width: 768px) {
 		.map-frame {
@@ -807,362 +902,668 @@
 			min-height: 340px;
 		}
 	}
-	.map-hint {
-		margin: 0.5rem 0 0 0;
+	.map-caption {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 0.25rem 1rem;
+		margin: 0.45rem 0 0.25rem 0;
 		font-size: 0.82rem;
 		color: var(--muted);
 	}
-	.location-bar {
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-left: 5px solid var(--primary);
-		border-radius: 0.75rem;
-		padding: 1rem 1.25rem;
-		margin-bottom: 1rem;
-		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+	.map-caption-coords {
+		font-family: var(--mono);
+		font-size: 0.78rem;
+		color: var(--ink-2);
 	}
-	.location-bar-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		margin-bottom: 0.2rem;
+
+	/* ---------- Report ---------- */
+	.location-head {
+		padding-bottom: 0.9rem;
+		margin-bottom: 1.1rem;
+		border-bottom: 1px solid var(--rule);
 	}
-	.eyebrow {
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: var(--muted);
+	.location-head .label {
+		margin: 0;
 	}
-	.location-bar h2 {
-		margin: 0.15rem 0 0 0;
-		font-size: 1.3rem;
+	.location-head h2 {
+		margin: 0.3rem 0 0.4rem 0;
+		font-size: clamp(1.45rem, 1.1rem + 1vw, 1.9rem);
+		overflow-wrap: anywhere;
 	}
 	.coords {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.25rem 1.25rem;
 		margin: 0;
 		font-size: 0.82rem;
 		color: var(--muted);
-		background: #f1f5f9;
-		padding: 0.2rem 0.5rem;
-		border-radius: 0.375rem;
-		border: 1px solid #e2e8f0;
 	}
-	.coords code {
-		font-weight: 600;
-		color: #1e293b;
+	.coords-dms {
+		font-family: var(--mono);
+		color: var(--ink);
 	}
-	.top-risk-banner {
-		border-radius: 0.75rem;
-		padding: 1rem 1.25rem;
-		margin-bottom: 1.15rem;
-		border: 2px solid;
+	.coords-dec code {
+		color: var(--ink-2);
 	}
-	.top-risk-header {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-		margin-bottom: 0.4rem;
-	}
-	.top-risk-tag {
-		font-size: 0.8rem;
-		font-weight: 700;
-		text-transform: uppercase;
-	}
-	.top-risk-banner h3 {
-		margin: 0.2rem 0 0.35rem 0;
-		font-size: 1.2rem;
-	}
-	.top-risk-banner p {
-		margin: 0;
-		font-size: 0.95rem;
-	}
-	.section-header {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: 0.5rem;
-		margin: 0 0 0.65rem 0;
-		padding: 0 0.15rem;
-	}
-	.section-header h3 {
-		margin: 0;
-		font-size: 0.95rem;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		color: #1e293b;
-	}
-	.section-sub {
-		font-size: 0.82rem;
-		color: var(--muted);
-	}
-	.badge {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		padding: 0.25rem 0.65rem;
-		border-radius: 0.375rem;
-		font-size: 0.8rem;
-		font-weight: 800;
-		border: 1.5px solid;
-	}
-	.tone-high {
-		background: var(--high-bg);
-		border-color: var(--high-border);
-		color: var(--high-text);
-	}
-	.tone-med {
-		background: var(--med-bg);
-		border-color: var(--med-border);
-		color: var(--med-text);
-	}
-	.tone-low {
-		background: var(--low-bg);
-		border-color: var(--low-border);
-		color: var(--low-text);
-	}
-	.tone-none {
-		background: var(--none-bg);
-		border-color: var(--none-border);
-		color: var(--none-text);
-	}
-	.tone-nodata {
-		background: var(--nodata-bg);
-		border-color: var(--nodata-border);
-		color: var(--nodata-text);
-	}
-	.cards-list {
+
+	.status-line {
 		display: flex;
 		flex-direction: column;
-		gap: 0.85rem;
+		gap: 0.6rem;
+		padding: 1rem 0;
+		color: var(--ink-2);
+		font-size: 0.95rem;
 	}
-	.hazard-card {
+	.status-bar {
+		display: block;
+		height: 4px;
+		background: repeating-linear-gradient(90deg, var(--ink) 0 14px, transparent 14px 28px);
+		background-size: 28px 4px;
+		animation: march 0.8s linear infinite;
+	}
+	@keyframes march {
+		to {
+			background-position: 28px 0;
+		}
+	}
+	.status-error {
+		padding: 0.9rem 1rem;
+		background: var(--high-bg);
+		border: 1.5px solid var(--high-border);
+		color: var(--high-text);
+	}
+
+	/* Verdict: the most significant risk, set like a stamped heading */
+	.verdict {
+		border: 1.5px solid var(--ink);
 		background: var(--surface);
-		border: 1px solid var(--border);
-		border-left-width: 6px;
-		border-radius: 0.65rem;
-		padding: 1rem 1.15rem;
-		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+		margin-bottom: 1.6rem;
 	}
-	.tone-border-high {
-		border-left-color: var(--high-border);
-	}
-	.tone-border-med {
-		border-left-color: var(--med-border);
-	}
-	.tone-border-low {
-		border-left-color: var(--low-border);
-	}
-	.tone-border-none {
-		border-left-color: var(--none-border);
-	}
-	.tone-border-nodata {
-		border-left-color: var(--nodata-border);
-	}
-	.card-top {
+	.verdict-strip {
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: space-between;
-		align-items: flex-start;
-		gap: 0.5rem;
+		align-items: baseline;
+		gap: 0.25rem 1rem;
+		padding: 0.5rem 1rem;
+		font-weight: 700;
+		font-size: 0.95rem;
+		color: #fffaf0;
 	}
-	.card-top h3 {
+	.verdict-tag {
+		font-family: var(--mono);
+		font-weight: 400;
+		font-size: 0.74rem;
+		letter-spacing: 0.04em;
+		opacity: 0.92;
+	}
+	.tone-high .verdict-strip {
+		background: var(--high-solid);
+	}
+	.tone-med .verdict-strip {
+		background: var(--med-solid);
+	}
+	.tone-low .verdict-strip {
+		background: var(--low-solid);
+	}
+	.tone-none .verdict-strip {
+		background: var(--none-solid);
+	}
+	.tone-nodata .verdict-strip {
+		background: var(--nodata-solid);
+	}
+	.verdict-body {
+		padding: 0.95rem 1rem 1.05rem;
+	}
+	.verdict-title {
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+		margin-bottom: 0.45rem;
+	}
+	.verdict-title h3 {
 		margin: 0;
-		font-size: 1.05rem;
+		font-size: 1.4rem;
+		flex: 1;
 	}
-	.card-sub {
-		margin: 0.15rem 0 0 0;
-		font-size: 0.83rem;
+	.verdict-body p {
+		margin: 0;
+		font-size: 0.97rem;
+		color: var(--ink-2);
+		max-width: 65ch;
+	}
+
+	.lvl-text {
+		display: inline-block;
+		text-transform: lowercase;
+	}
+	.lvl-text::first-letter {
+		text-transform: uppercase;
+	}
+
+	.section-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.75rem;
+		border-bottom: 1px solid var(--rule);
+		padding-bottom: 0.3rem;
+	}
+	.section-head h3 {
+		margin: 0;
+		font-size: 1.12rem;
+	}
+	.section-count {
+		font-family: var(--mono);
+		font-size: 0.85rem;
 		color: var(--muted);
 	}
-	.card-explanation {
-		margin: 0.65rem 0 0 0;
-		font-size: 0.94rem;
+	.section-sub {
+		margin: 0.35rem 0 0 0;
+		font-size: 0.84rem;
+		color: var(--muted);
+	}
+
+	/* Ledger of hazards */
+	.ledger {
+		list-style: none;
+		margin: 0.4rem 0 0 0;
+		padding: 0;
+	}
+	.ledger-row {
+		border-bottom: 1px solid var(--hair);
+		padding: 1rem 0 1.05rem;
+	}
+	.ledger-row:last-child {
+		border-bottom: 1px solid var(--rule);
+	}
+	.row-top {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.3rem 0.8rem;
+		align-items: start;
+	}
+	@media (min-width: 560px) {
+		.row-top {
+			grid-template-columns: auto minmax(0, 1fr) auto;
+		}
+	}
+	.row-title h4 {
+		margin: 0;
+		font-size: 1.08rem;
+	}
+	.row-sub {
+		margin: 0.1rem 0 0 0;
+		font-size: 0.82rem;
+		color: var(--muted);
+	}
+	.row-level {
+		grid-column: 2;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.85rem;
+		font-weight: 700;
+	}
+	@media (min-width: 560px) {
+		.row-level {
+			grid-column: auto;
+			justify-content: flex-end;
+			text-align: right;
+			max-width: 15rem;
+			padding-top: 0.2rem;
+		}
+	}
+	.level-high {
+		color: var(--high-text);
+	}
+	.level-med {
+		color: var(--med-text);
+	}
+	.level-low {
+		color: var(--low-text);
+	}
+	.level-none {
+		color: var(--none-text);
+	}
+	.level-nodata {
+		color: var(--nodata-text);
+	}
+	.row-body {
+		padding-left: 2.9rem;
+	}
+	@media (max-width: 420px) {
+		.row-body {
+			padding-left: 0;
+		}
+	}
+	.row-explanation {
+		margin: 0.6rem 0 0 0;
+		font-size: 0.95rem;
+		max-width: 65ch;
 	}
 	.detail-grid {
 		margin: 0.65rem 0 0 0;
-		padding: 0.6rem 0.75rem;
-		background: #f8fafc;
-		border-radius: 0.4rem;
-		font-size: 0.88rem;
+		font-size: 0.87rem;
 		display: grid;
-		gap: 0.3rem;
+		border-top: 1px dotted var(--hair);
 	}
 	.detail-grid div {
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: 0.15rem 1rem;
+		padding: 0.3rem 0;
+		border-bottom: 1px dotted var(--hair);
 	}
 	.detail-grid dt {
 		color: var(--muted);
 	}
 	.detail-grid dd {
 		margin: 0;
+		font-family: var(--mono);
+		font-size: 0.84rem;
+		text-align: right;
 	}
-	.card-notes {
-		margin: 0.5rem 0 0 0;
-		padding-left: 1.2rem;
+	.row-notes {
+		margin: 0.55rem 0 0 0;
+		padding-left: 1.1rem;
 		font-size: 0.85rem;
+		color: var(--ink-2);
+	}
+	.row-notes li::marker {
+		content: '— ';
 		color: var(--muted);
 	}
-	.geocoder-msg {
-		margin: 0.5rem 0 0 0;
-		font-size: 0.88rem;
+	.row-source {
+		margin-top: 0.65rem;
+		font-size: 0.78rem;
 		color: var(--muted);
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.3rem 1rem;
+	}
+	.src-key {
+		font-family: var(--mono);
+		font-size: 0.7rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--ink-2);
+		margin-right: 0.2rem;
 	}
 	.source-note {
 		flex-basis: 100%;
 	}
-	.card-source {
-		margin-top: 0.75rem;
-		padding-top: 0.55rem;
-		border-top: 1px solid #e2e8f0;
-		font-size: 0.8rem;
-		color: var(--muted);
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: space-between;
-		gap: 0.5rem;
-	}
-	.actions-section {
-		margin-top: 1.25rem;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 0.75rem;
-		padding: 1rem 1.25rem;
-	}
-	.actions-section h3 {
-		margin: 0 0 0.75rem 0;
-		font-size: 1.05rem;
-	}
-	.actions-grid {
-		display: grid;
-		gap: 0.75rem;
-	}
-	.action-card {
-		padding: 0.75rem;
-		background: #f8fafc;
-		border: 1px solid #e2e8f0;
-		border-radius: 0.5rem;
-	}
-	.action-card h4 {
-		margin: 0 0 0.25rem 0;
-		font-size: 0.95rem;
-	}
-	.action-card p {
-		margin: 0 0 0.4rem 0;
-		font-size: 0.88rem;
-		color: var(--muted);
-	}
-	.report-disclaimer {
-		margin-top: 1rem;
-		padding: 0.85rem 1rem;
-		background: #f1f5f9;
-		border: 1px solid #cbd5e1;
-		border-radius: 0.5rem;
-		font-size: 0.85rem;
-		color: var(--muted);
-	}
-	.status-card {
-		padding: 1.25rem;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 0.75rem;
-	}
-	.status-error {
-		background: var(--high-bg);
-		border-color: var(--high-border);
-		color: var(--high-text);
-	}
 
-	/* Compact, WCAG AA-compliant section for hazards without data */
-	.nodata-compact-box {
-		margin-top: 1rem;
-		padding: 0.85rem 1rem;
-		background: #f1f5f9;
-		border: 1px solid #cbd5e1;
-		border-radius: 0.65rem;
+	/* No-data hazards */
+	.nodata-box {
+		margin-top: 1.4rem;
+		border: 1px dashed var(--nodata-border);
+		background: repeating-linear-gradient(-45deg, transparent 0 7px, rgba(122, 116, 102, 0.07) 7px 8px);
+		padding: 0.2rem 0.9rem;
 	}
-	.nodata-compact-title {
+	.nodata-box summary {
 		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
 		justify-content: space-between;
-		gap: 0.5rem;
-		margin-bottom: 0.6rem;
-		font-size: 0.82rem;
+		align-items: baseline;
+		gap: 0.75rem;
+		padding: 0.55rem 0;
+		cursor: pointer;
+		list-style: none;
+	}
+	.nodata-box summary::-webkit-details-marker {
+		display: none;
+	}
+	.nodata-title {
 		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		color: #334155;
+		font-size: 0.92rem;
 	}
-	.nodata-compact-subtitle {
-		font-size: 0.78rem;
-		font-weight: 500;
-		text-transform: none;
-		letter-spacing: normal;
-		color: #475569;
+	.nodata-title::before {
+		content: '+';
+		display: inline-block;
+		width: 1rem;
+		font-family: var(--mono);
+		color: var(--muted);
 	}
-	.nodata-pills {
-		display: flex;
-		flex-direction: column;
-		gap: 0.45rem;
+	.nodata-box[open] .nodata-title::before {
+		content: '−';
 	}
-	.nodata-pill {
+	.nodata-subtitle {
+		margin: 0 0 0.5rem 1rem;
+		font-size: 0.82rem;
+		color: var(--muted);
+	}
+	.nodata-list {
+		list-style: none;
+		margin: 0 0 0.6rem 0;
+		padding: 0;
+	}
+	.nodata-item {
 		display: flex;
 		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.75rem;
-		padding: 0.5rem 0.75rem;
-		background: #ffffff;
-		border: 1px solid #cbd5e1;
-		border-left: 4px solid #64748b;
-		border-radius: 0.4rem;
-		font-size: 0.84rem;
-		color: #334155;
+		gap: 0.7rem;
+		padding: 0.55rem 0;
+		border-top: 1px solid var(--hair);
+		font-size: 0.85rem;
 	}
-	.nodata-pill-main {
+	.hz-code-muted {
+		color: var(--nodata-text);
+		border-style: dashed;
+		background: transparent;
+	}
+	.nodata-main {
 		display: flex;
 		flex-direction: column;
-		gap: 0.2rem;
+		gap: 0.15rem;
 		min-width: 0;
 		flex: 1;
 	}
-	.nodata-pill-header {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-	}
-	.nodata-pill-icon {
-		font-size: 0.9rem;
-		filter: grayscale(1);
-	}
-	.nodata-pill-name {
+	.nodata-name {
 		font-weight: 700;
-		color: #1e293b;
 	}
-	.nodata-pill-reason {
+	.nodata-reason {
 		margin: 0;
-		font-size: 0.8rem;
-		color: #334155;
+		font-size: 0.82rem;
+		color: var(--ink-2);
 	}
-	.nodata-pill-source {
-		font-size: 0.75rem;
-		color: #475569;
+	.nodata-source {
+		font-size: 0.76rem;
+		color: var(--muted);
 	}
-	.nodata-pill-tag {
-		font-size: 0.74rem;
-		font-weight: 700;
-		color: #334155;
-		background: #e2e8f0;
-		border: 1px solid #94a3b8;
-		padding: 0.15rem 0.5rem;
-		border-radius: 0.25rem;
+	.nodata-tag {
+		font-family: var(--mono);
+		font-size: 0.7rem;
+		color: var(--nodata-text);
 		white-space: nowrap;
+		padding-top: 0.2rem;
+	}
+
+	/* Recommended actions as a numbered procedure */
+	.actions-section {
+		margin-top: 2rem;
+	}
+	.actions-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.actions-list li {
+		display: grid;
+		grid-template-columns: 2.4rem minmax(0, 1fr);
+		gap: 0.5rem;
+		padding: 0.85rem 0;
+		border-bottom: 1px solid var(--hair);
+	}
+	.action-num {
+		font-family: var(--mono);
+		font-size: 1.1rem;
+		font-weight: 700;
+		color: var(--accent);
+		line-height: 1.3;
+	}
+	.actions-list h4 {
+		margin: 0 0 0.2rem 0;
+		font-size: 1rem;
+	}
+	.actions-list p {
+		margin: 0 0 0.3rem 0;
+		font-size: 0.9rem;
+		color: var(--ink-2);
+	}
+	.actions-list a {
+		font-size: 0.88rem;
+		font-weight: 600;
+	}
+
+	.report-disclaimer {
+		margin-top: 1.5rem;
+		padding-top: 0.75rem;
+		border-top: 3px double var(--rule);
+		font-size: 0.82rem;
+		color: var(--muted);
+	}
+
+	.print-header {
+		border-bottom: 2px solid #000;
+		padding-bottom: 0.5rem;
+		margin-bottom: 1.25rem;
+	}
+	.print-meta-row {
+		display: flex;
+		justify-content: space-between;
+		font-family: var(--mono);
+		font-size: 0.72rem;
+		color: #333;
+		border-bottom: 1px solid #ccc;
+		padding-bottom: 0.25rem;
+		margin-bottom: 0.4rem;
+	}
+	.print-brand-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+	}
+	.print-doc-title {
+		font-family: var(--serif);
+		font-size: 1.15rem;
+	}
+	.print-doc-date {
+		font-family: var(--mono);
+		font-size: 0.76rem;
+	}
+
+	.nodata-print-head {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 0.75rem;
+		padding: 0.35rem 0 0.25rem;
+		border-bottom: 1px solid var(--hair);
+		margin-bottom: 0.35rem;
+	}
+
+	@media print {
+		.workspace-grid {
+			display: block !important;
+			margin: 0 !important;
+			padding: 0 !important;
+			gap: 0 !important;
+			width: 100% !important;
+			box-sizing: border-box !important;
+		}
+		.report-column {
+			display: block !important;
+			margin: 0 !important;
+			padding: 0 !important;
+			width: 100% !important;
+			max-width: 100% !important;
+			box-sizing: border-box !important;
+		}
+		.print-header {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			margin-bottom: 0.75rem;
+		}
+		.print-meta-row,
+		.print-brand-row {
+			width: 100% !important;
+			box-sizing: border-box !important;
+		}
+		.location-head {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			padding-bottom: 0.35rem;
+			margin-bottom: 0.55rem;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.location-head h2 {
+			font-size: 1.35rem;
+			margin: 0.15rem 0 0.25rem 0;
+			word-break: break-word;
+		}
+		.verdict {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			margin-bottom: 0.75rem;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.verdict-strip {
+			-webkit-print-color-adjust: exact !important;
+			print-color-adjust: exact !important;
+			padding: 0.35rem 0.75rem;
+			width: 100% !important;
+			box-sizing: border-box !important;
+		}
+		.verdict-body {
+			padding: 0.55rem 0.75rem;
+			width: 100% !important;
+			box-sizing: border-box !important;
+		}
+		.verdict-title {
+			width: 100% !important;
+			box-sizing: border-box !important;
+		}
+		.verdict-title h3 {
+			font-size: 1.12rem;
+		}
+		.section-head {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			padding-bottom: 0.2rem;
+			margin-top: 0.75rem;
+			break-after: avoid;
+			page-break-after: avoid;
+		}
+		.ledger {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			margin-top: 0.2rem;
+		}
+		.ledger-row {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			padding: 0.5rem 0;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.row-top {
+			display: flex !important;
+			align-items: baseline !important;
+			justify-content: space-between !important;
+			width: 100% !important;
+			box-sizing: border-box !important;
+			gap: 0.5rem !important;
+		}
+		.row-title {
+			flex: 1 !important;
+			min-width: 0 !important;
+		}
+		.row-level {
+			flex: none !important;
+			max-width: none !important;
+			white-space: nowrap !important;
+			text-align: right !important;
+		}
+		.row-body {
+			padding-left: 2.6rem !important;
+			width: 100% !important;
+			box-sizing: border-box !important;
+		}
+		.detail-grid {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			margin-top: 0.3rem;
+			padding: 0.15rem 0;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.detail-grid div {
+			display: flex !important;
+			justify-content: space-between !important;
+			width: 100% !important;
+			box-sizing: border-box !important;
+		}
+		.detail-grid dt {
+			flex: 1 !important;
+			text-align: left !important;
+		}
+		.detail-grid dd {
+			flex: none !important;
+			text-align: right !important;
+			white-space: nowrap !important;
+		}
+		.row-source {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			margin-top: 0.3rem;
+		}
+		.nodata-box {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			margin-top: 0.75rem;
+			padding: 0.5rem 0.75rem;
+			background: #faf8f4 !important;
+			border: 1px dashed var(--nodata-border) !important;
+			break-inside: auto;
+		}
+		.nodata-print-head {
+			width: 100% !important;
+			box-sizing: border-box !important;
+		}
+		.nodata-list {
+			width: 100% !important;
+			box-sizing: border-box !important;
+		}
+		.nodata-item {
+			display: flex !important;
+			align-items: baseline !important;
+			justify-content: space-between !important;
+			width: 100% !important;
+			box-sizing: border-box !important;
+			gap: 0.75rem !important;
+			padding: 0.3rem 0;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.nodata-main {
+			flex: 1 !important;
+			min-width: 0 !important;
+		}
+		.nodata-tag {
+			flex: none !important;
+			white-space: nowrap !important;
+		}
+		.actions-section {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			margin-top: 0.85rem;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.actions-list li {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			padding: 0.4rem 0;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.report-disclaimer {
+			width: 100% !important;
+			box-sizing: border-box !important;
+			margin-top: 0.75rem;
+			padding-top: 0.4rem;
+			font-size: 0.76rem;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.meter i,
+		.hz-code,
+		.nodata-tag {
+			-webkit-print-color-adjust: exact !important;
+			print-color-adjust: exact !important;
+		}
 	}
 </style>

@@ -27,8 +27,9 @@
 </svelte:head>
 
 <section class="page-intro">
+	<p class="label">List 02 — Izvori i metodologija</p>
 	<h1>Izvori otvorenih podataka i metodologija izračuna</h1>
-	<p>
+	<p class="intro-body">
 		Aplikacija <strong>Geo-rizik</strong> povezuje službene skupove otvorenih podataka tijela javnog sektora Republike Hrvatske
 		(<a href="https://data.gov.hr/" target="_blank" rel="noopener noreferrer">Portal otvorenih podataka RH</a>, NIPP/INSPIRE servisi)
 		i europskih znanstvenih servisa (Copernicus EFAS, EFEHR ESHM20). Razine opasnosti računaju se <strong>isključivo deterministički</strong>
@@ -38,17 +39,23 @@
 </section>
 
 <section class="section-block" aria-labelledby="sources-heading">
-	<h2 id="sources-heading">1. Katalog korištenih skupova podataka</h2>
+	<div class="section-head">
+		<h2 id="sources-heading">1. Katalog korištenih skupova podataka</h2>
+		<span class="section-count">{Object.keys(layers).length ? String(Object.keys(layers).length).padStart(2, '0') : ''}</span>
+	</div>
 	{#if loadFailed}
 		<div class="load-error" role="alert">Popis izvora trenutno nije dostupan. Pokušajte ponovno.</div>
 	{/if}
 	<div class="sources-grid">
-		{#each Object.entries(layers) as [key, item]}
+		{#each Object.entries(layers) as [key, item], idx}
 			<article class="source-card">
 				<div class="source-header">
-					<h3>{item.title}</h3>
+					<div class="source-title-row">
+						<span class="source-num" aria-hidden="true">{String(idx + 1).padStart(2, '0')}</span>
+						<h3>{item.title}</h3>
+					</div>
 					{#if COVERAGE[item.coverage]}
-						<span class="coverage-chip {COVERAGE[item.coverage].cls}">{COVERAGE[item.coverage].label}</span>
+						<span class="coverage-chip {COVERAGE[item.coverage].cls}">[{COVERAGE[item.coverage].label}]</span>
 					{/if}
 				</div>
 				<dl class="meta-list">
@@ -99,21 +106,23 @@
 </section>
 
 <section class="section-block" aria-labelledby="rules-heading">
-	<h2 id="rules-heading">2. Javna tablica pravila za određivanje razina</h2>
-	<p>
+	<div class="section-head">
+		<h2 id="rules-heading">2. Javna tablica pravila za određivanje razina</h2>
+	</div>
+	<p class="rules-lede">
 		Sustav strogo razlikuje stanje <strong>„nema rizika prema karti”</strong> (izvor pokriva točku i pokazuje da opasnosti nema)
 		od stanja <strong>„nema podataka”</strong> (izvor ne pokriva područje ili servis nije dostupan).
 		Kod odabira „najznačajnijeg rizika” na vrhu izvještaja uspoređuje se utvrđena razina, a kod iste razine redoslijed prioriteta je:
 		<em>poplave → potres → klizišta → likvefakcija → vrtače → nepovoljno za gradnju → podzemna voda</em>.
 	</p>
 
-	<div class="table-wrap" tabindex="0" role="region" aria-label="Tablica pravila">
+	<div class="table-wrap" role="region" aria-label="Tablica pravila">
 		<table class="rules-table">
 			<thead>
 				<tr>
-					<th>Opasnost</th>
-					<th>Izvor podataka</th>
-					<th>Determinističko pravilo mapiranja u razinu</th>
+					<th scope="col" style="width: 22%;">Opasnost</th>
+					<th scope="col" style="width: 28%;">Izvor podataka</th>
+					<th scope="col">Determinističko pravilo mapiranja u razinu</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -179,8 +188,10 @@
 </section>
 
 <section class="section-block" aria-labelledby="basemap-heading">
-	<h2 id="basemap-heading">Podloga karte</h2>
-	<p>
+	<div class="section-head">
+		<h2 id="basemap-heading">3. Podloga karte</h2>
+	</div>
+	<p class="basemap-text">
 		Pozadinska karta je © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">suradnici OpenStreetMapa</a>
 		(licenca ODbL), a pločice poslužuje tile.openstreetmap.org prema
 		<a href="https://operations.osmfoundation.org/policies/tiles/" target="_blank" rel="noopener noreferrer">pravilima korištenja pločica</a>.
@@ -190,8 +201,10 @@
 </section>
 
 <section class="section-block disclaimer-box" aria-labelledby="legal-heading">
-	<h2 id="legal-heading">3. Odricanje od odgovornosti, privatnost i licence</h2>
-	<ul>
+	<div class="section-head">
+		<h2 id="legal-heading">4. Odricanje od odgovornosti, privatnost i licence</h2>
+	</div>
+	<ul class="disclaimer-list">
 		<li>
 			<strong>Informativni karakter:</strong> Podaci prikazani u aplikaciji služe isključivo za informiranje građana i ne predstavljaju službeno uvjerenje, lokacijsku informaciju niti geotehničko ili građevinsko stručno mišljenje. Za sve zahvate u prostoru i kupoprodajne odluke obratite se nadležnim javnopravnim tijelima i ovlaštenim inženjerima.
 		</li>
@@ -206,140 +219,213 @@
 
 <style>
 	.page-intro {
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 0.75rem;
-		padding: 1.35rem 1.5rem;
-		margin-bottom: 1.5rem;
+		padding-bottom: 1.5rem;
+		margin-bottom: 1.75rem;
+		border-bottom: 1px solid var(--rule);
+	}
+	.page-intro .label {
+		margin: 0 0 0.5rem 0;
+		color: var(--accent-ink);
 	}
 	.page-intro h1 {
-		margin: 0 0 0.5rem 0;
-		font-size: 1.5rem;
+		margin: 0 0 0.75rem 0;
+		font-size: clamp(1.7rem, 1.2rem + 1.8vw, 2.5rem);
+		line-height: 1.1;
+		max-width: 24ch;
 	}
-	.page-intro p {
+	.intro-body {
 		margin: 0;
-		color: var(--muted);
+		color: var(--ink-2);
+		max-width: 78ch;
+		font-size: 1.02rem;
+		line-height: 1.6;
 	}
 	.section-block {
-		margin-bottom: 2rem;
+		margin-bottom: 2.75rem;
 	}
-	.section-block h2 {
+	.section-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.75rem;
+		border-bottom: 1px solid var(--rule);
+		padding-bottom: 0.35rem;
+		margin-bottom: 1.1rem;
+	}
+	.section-head h2 {
 		font-size: 1.25rem;
-		margin: 0 0 0.85rem 0;
+		margin: 0;
+	}
+	.section-count {
+		font-family: var(--mono);
+		font-size: 0.85rem;
+		color: var(--muted);
 	}
 	.sources-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr));
-		gap: 1rem;
+		grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
+		gap: 1.25rem;
 	}
 	.source-card {
 		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 0.65rem;
-		padding: 1rem 1.15rem;
+		border: 1.5px solid var(--ink);
+		padding: 1.1rem 1.25rem;
 		display: flex;
 		flex-direction: column;
 		justify-content: space-between;
+		box-shadow: 4px 4px 0 var(--paper-2);
 	}
 	.source-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
-		gap: 0.5rem;
-		margin-bottom: 0.65rem;
+		gap: 0.75rem;
+		margin-bottom: 0.85rem;
+		border-bottom: 1px solid var(--hair);
+		padding-bottom: 0.65rem;
+	}
+	.source-title-row {
+		display: flex;
+		align-items: baseline;
+		gap: 0.6rem;
+		flex: 1;
+	}
+	.source-num {
+		font-family: var(--mono);
+		font-size: 0.85rem;
+		font-weight: 700;
+		color: var(--accent);
+		flex: none;
 	}
 	.source-header h3 {
 		margin: 0;
-		font-size: 1rem;
+		font-size: 1.05rem;
+		line-height: 1.25;
 	}
 	.coverage-chip {
-		font-size: 0.75rem;
-		font-weight: 700;
-		padding: 0.2rem 0.55rem;
-		border-radius: 999px;
+		font-family: var(--mono);
+		font-size: 0.72rem;
+		padding: 0.1rem 0.45rem;
+		border: 1px solid currentColor;
 		white-space: nowrap;
+		flex: none;
+	}
+	.cov-hr {
+		color: var(--none-text);
+		background: var(--none-bg);
+	}
+	.cov-ban {
+		color: var(--med-text);
+		background: var(--med-bg);
 	}
 	.load-error {
 		padding: 1rem 1.25rem;
 		margin-bottom: 1rem;
 		background: var(--high-bg);
-		border: 1px solid var(--high-border);
+		border: 1.5px solid var(--high-border);
 		color: var(--high-text);
-		border-radius: 0.65rem;
-	}
-	.cov-hr {
-		background: #dbeafe;
-		color: #1e3a8a;
-	}
-	.cov-ban {
-		background: #fef3c7;
-		color: #78350f;
 	}
 	.meta-list {
-		margin: 0 0 0.75rem 0;
-		font-size: 0.88rem;
+		margin: 0 0 0.85rem 0;
+		font-size: 0.86rem;
 		display: grid;
-		gap: 0.3rem;
+		gap: 0.35rem;
 	}
 	.meta-list div {
 		display: grid;
-		grid-template-columns: 120px 1fr;
+		grid-template-columns: 110px 1fr;
 		gap: 0.4rem;
 	}
 	.meta-list dt {
 		color: var(--muted);
+		font-family: var(--sans);
 		font-weight: 600;
+		font-size: 0.82rem;
 	}
 	.meta-list dd {
 		margin: 0;
+		color: var(--ink);
+	}
+	.licence-note {
+		color: var(--muted);
+		font-size: 0.78rem;
 	}
 	.source-links {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.75rem;
-		padding-top: 0.55rem;
-		border-top: 1px solid #e2e8f0;
-		font-size: 0.85rem;
+		gap: 0.5rem 1.25rem;
+		padding-top: 0.65rem;
+		border-top: 1px solid var(--hair);
+		font-size: 0.84rem;
 		font-weight: 600;
+	}
+	.rules-lede {
+		margin: 0 0 1rem 0;
+		max-width: 78ch;
+		color: var(--ink-2);
+		font-size: 0.95rem;
+		line-height: 1.55;
 	}
 	.table-wrap {
 		overflow-x: auto;
 		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 0.65rem;
-	}
-	.table-wrap:focus-visible {
-		outline: 3px solid #1d4ed8;
-		outline-offset: 2px;
+		border: 1.5px solid var(--ink);
 	}
 	.rules-table {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 0.9rem;
+		font-size: 0.88rem;
+		text-align: left;
 	}
 	.rules-table th,
 	.rules-table td {
-		padding: 0.75rem 1rem;
-		text-align: left;
-		border-bottom: 1px solid #e2e8f0;
+		padding: 0.85rem 1.1rem;
+		border-bottom: 1px solid var(--hair);
 		vertical-align: top;
+		line-height: 1.5;
 	}
 	.rules-table th {
-		background: #f1f5f9;
+		background: var(--paper-2);
+		font-family: var(--sans);
+		font-size: 0.78rem;
 		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--ink);
+		border-bottom: 1.5px solid var(--ink);
+	}
+	.rules-table tr:last-child td {
+		border-bottom: none;
+	}
+	.rules-table tr:hover td {
+		background: rgba(235, 229, 214, 0.4);
+	}
+	.basemap-text {
+		margin: 0;
+		max-width: 78ch;
+		color: var(--ink-2);
+		font-size: 0.95rem;
+		line-height: 1.55;
 	}
 	.disclaimer-box {
+		padding: 1.25rem 1.5rem;
 		background: var(--surface);
-		border: 1px solid var(--border);
-		border-left: 6px solid #2563eb;
-		border-radius: 0.65rem;
-		padding: 1.15rem 1.35rem;
+		border: 1.5px solid var(--ink);
+		border-left: 6px solid var(--ink);
 	}
-	.disclaimer-box ul {
+	.disclaimer-box .section-head {
+		margin-bottom: 0.9rem;
+	}
+	.disclaimer-list {
 		margin: 0;
 		padding-left: 1.25rem;
 		display: grid;
-		gap: 0.6rem;
+		gap: 0.75rem;
 		font-size: 0.92rem;
+		line-height: 1.6;
+		color: var(--ink-2);
+	}
+	.disclaimer-list li::marker {
+		color: var(--accent);
 	}
 </style>
