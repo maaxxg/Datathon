@@ -36,24 +36,10 @@
 
 	let mapObj = $state(null);
 
-	let mapColumnEl;
-	let mapColHeight = $state(0);
-
 	let mapContainer;
 	let map;
 	let marker;
 	let debounceTimer;
-
-	$effect(() => {
-		if (!mapColumnEl) return;
-		const ro = new ResizeObserver((entries) => {
-			for (const entry of entries) {
-				mapColHeight = Math.round(entry.contentRect.height);
-			}
-		});
-		ro.observe(mapColumnEl);
-		return () => ro.disconnect();
-	});
 
 	// Only the most recent fetchReport call may change report/errorMsg/loading.
 	let reqId = 0;
@@ -80,11 +66,11 @@
 				const body = await res.json().catch(() => ({}));
 				if (id !== reqId) return;
 				if (Array.isArray(body.detail)) throw new Error('Neispravna lokacija.');
-					throw new Error(
-						typeof body.detail === 'string' && body.detail
-							? body.detail
-							: `Greška poslužitelja (${res.status})`
-					);
+				throw new Error(
+					typeof body.detail === 'string' && body.detail
+						? body.detail
+						: `Greška poslužitelja (${res.status})`
+				);
 			}
 			const data = await res.json();
 			if (id !== reqId) return;
@@ -332,7 +318,7 @@
 	<div class="search-header">
 		<h1>Provjerite izloženost lokacije poplavama, potresu i geohazardima</h1>
 		<p>
-			Unesite adresu u Hrvatskoj (iz službenog registra DGU Adrese INSPIRE), kliknite na kartu ili pretražujte prirodnim jezikom.
+			Unesite adresu u Hrvatskoj (iz službenog registra DGU Adrese INSPIRE), kliknite na kartu ili pretražujte područja prirodnim jezikom.
 		</p>
 	</div>
 
@@ -351,8 +337,13 @@
 				onfocus={() => (showSuggestions = suggestions.length > 0)}
 				autocomplete="off"
 			/>
-			<button type="button" class="btn-secondary" onclick={() => window.print()}>
-				🖨️ Ispis / PDF
+			<button
+				type="button"
+				class="btn-secondary"
+				disabled={loading || !report || !!errorMsg}
+				onclick={() => window.print()}
+			>
+				<span aria-hidden="true">🖨️</span> Ispis / PDF
 			</button>
 		</div>
 
@@ -401,7 +392,7 @@
 </section>
 
 <div class="workspace-grid">
-	<section class="map-column no-print" aria-label="Interaktivna karta" bind:this={mapColumnEl}>
+	<section class="map-column no-print" aria-label="Interaktivna karta">
 		<div class="map-frame" bind:this={mapContainer}></div>
 		<MapLayers map={mapObj} {requestedLayer} />
 		<p class="map-hint">
@@ -409,14 +400,10 @@
 		</p>
 	</section>
 
-	<section
-		class="report-column"
-		aria-live="polite"
-		style={mapColHeight > 0 ? `max-height: ${mapColHeight}px; height: ${mapColHeight}px;` : ''}
-	>
+	<section class="report-column" aria-live="polite">
 		<div class="location-bar">
 			<div class="location-bar-header">
-				<span class="eyebrow">Izvještaj za lokaciju</span>
+				<span class="eyebrow">Izvještaj za odabranu lokaciju</span>
 				<span class="coords">WGS84: <code>{fmt(lat, 5)}; {fmt(lon, 5)}</code></span>
 			</div>
 			<h2>{selectedLabel}</h2>
@@ -460,7 +447,6 @@
 						<span class="badge tone-none"><span aria-hidden="true">○</span> NEMA UTVRĐENE POVIŠENE OPASNOSTI</span>
 					</div>
 					<h3>Prema dostupnim kartama nije utvrđen povišeni rizik</h3>
-					<p class="banner-extra">Za neke opasnosti nema podataka (vidi kartice ispod).</p>
 					{#if report.summary}
 						<p>{report.summary}</p>
 					{/if}
@@ -478,6 +464,10 @@
 			{/if}
 
 			{#if availableHazards.length > 0}
+				<div class="section-header">
+					<h3>Utvrđene razine po vrstama opasnosti ({availableHazards.length})</h3>
+					<span class="section-sub">Detaljna procjena iz dostupnih izvora za odabranu točku</span>
+				</div>
 				<div class="cards-list">
 					{#each availableHazards as h}
 						{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, subtitle: '', icon: 'ℹ️' }}
@@ -589,24 +579,37 @@
 						</article>
 					{/each}
 				</div>
-			{:else}
-				<div class="empty-available-card">
-					<p>Za ovu točku trenutno nema utvrđenih povišenih rizika u obrađenim podacima.</p>
-				</div>
 			{/if}
 
 			{#if noDataHazards.length > 0}
 				<div class="nodata-compact-box">
 					<div class="nodata-compact-title">
-						<span>Nedostupni podaci ({noDataHazards.length})</span>
-						<span class="nodata-compact-subtitle">Nema zabilježenih podataka za ovu točku</span>
+						<span>Nedostupni podaci za ovu lokaciju ({noDataHazards.length})</span>
+						<span class="nodata-compact-subtitle">
+							Izvor podataka ne pokriva ovu točku ili je servis privremeno nedostupan
+						</span>
 					</div>
 					<div class="nodata-pills">
 						{#each noDataHazards as h}
 							{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, icon: '○' }}
+							{@const reasonText =
+								h.notes && h.notes.length > 0 ? h.notes.join(' ') : h.explanation || ''}
 							<div class="nodata-pill">
-								<span class="nodata-pill-icon" aria-hidden="true">{meta.icon}</span>
-								<span class="nodata-pill-name">{meta.title}</span>
+								<div class="nodata-pill-main">
+									<div class="nodata-pill-header">
+										<span class="nodata-pill-icon" aria-hidden="true">{meta.icon}</span>
+										<span class="nodata-pill-name">{meta.title}</span>
+									</div>
+									{#if reasonText}
+										<p class="nodata-pill-reason">{reasonText}</p>
+									{/if}
+									{#if h.source && h.source.title}
+										<span class="nodata-pill-source">
+											Izvor: {[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
+											{#if h.source.year}({h.source.year}.){/if}
+										</span>
+									{/if}
+								</div>
 								<span class="nodata-pill-tag">Nema podataka</span>
 							</div>
 						{/each}
@@ -697,8 +700,12 @@
 		border-radius: 0.5rem;
 		cursor: pointer;
 	}
-	.btn-secondary:hover {
+	.btn-secondary:hover:not(:disabled) {
 		background: #e2e8f0;
+	}
+	.btn-secondary:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 	.suggestions-list {
 		position: absolute;
@@ -764,7 +771,7 @@
 	}
 	@media (min-width: 992px) {
 		.workspace-grid {
-			grid-template-columns: minmax(0, 1.4fr) minmax(360px, 1fr);
+			grid-template-columns: minmax(0, 1.3fr) minmax(380px, 1fr);
 			align-items: start;
 		}
 	}
@@ -773,48 +780,31 @@
 		border: 1px solid var(--border);
 		border-radius: 0.75rem;
 		padding: 0.85rem;
+		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 	}
 	@media (min-width: 992px) {
 		.map-column {
 			position: sticky;
 			top: 1rem;
+			max-height: calc(100vh - 2rem);
+			overflow-y: auto;
+			scrollbar-width: thin;
 		}
 	}
 	.report-column {
 		min-width: 0;
 	}
-	@media (min-width: 992px) {
-		.report-column {
-			overflow-y: auto;
-			padding-right: 0.35rem;
-			scrollbar-width: thin;
-			scrollbar-color: #94a3b8 #f1f5f9;
-		}
-		.report-column::-webkit-scrollbar {
-			width: 7px;
-		}
-		.report-column::-webkit-scrollbar-track {
-			background: #f1f5f9;
-			border-radius: 4px;
-		}
-		.report-column::-webkit-scrollbar-thumb {
-			background-color: #94a3b8;
-			border-radius: 4px;
-		}
-		.report-column::-webkit-scrollbar-thumb:hover {
-			background-color: #64748b;
-		}
-	}
 	.map-frame {
 		width: 100%;
-		height: 620px;
-		min-height: 500px;
+		height: clamp(420px, 56vh, 560px);
+		min-height: 420px;
 		border-radius: 0.5rem;
 		border: 1px solid var(--border);
 	}
 	@media (max-width: 768px) {
 		.map-frame {
-			height: 420px;
+			height: 400px;
+			min-height: 340px;
 		}
 	}
 	.map-hint {
@@ -825,9 +815,11 @@
 	.location-bar {
 		background: var(--surface);
 		border: 1px solid var(--border);
+		border-left: 5px solid var(--primary);
 		border-radius: 0.75rem;
 		padding: 1rem 1.25rem;
 		margin-bottom: 1rem;
+		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 	}
 	.location-bar-header {
 		display: flex;
@@ -864,7 +856,7 @@
 	.top-risk-banner {
 		border-radius: 0.75rem;
 		padding: 1rem 1.25rem;
-		margin-bottom: 1rem;
+		margin-bottom: 1.15rem;
 		border: 2px solid;
 	}
 	.top-risk-header {
@@ -887,6 +879,26 @@
 	.top-risk-banner p {
 		margin: 0;
 		font-size: 0.95rem;
+	}
+	.section-header {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin: 0 0 0.65rem 0;
+		padding: 0 0.15rem;
+	}
+	.section-header h3 {
+		margin: 0;
+		font-size: 0.95rem;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		color: #1e293b;
+	}
+	.section-sub {
+		font-size: 0.82rem;
+		color: var(--muted);
 	}
 	.badge {
 		display: inline-flex;
@@ -934,6 +946,7 @@
 		border-left-width: 6px;
 		border-radius: 0.65rem;
 		padding: 1rem 1.15rem;
+		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 	}
 	.tone-border-high {
 		border-left-color: var(--high-border);
@@ -997,14 +1010,10 @@
 		font-size: 0.85rem;
 		color: var(--muted);
 	}
-.geocoder-msg {
+	.geocoder-msg {
 		margin: 0.5rem 0 0 0;
 		font-size: 0.88rem;
 		color: var(--muted);
-	}
-	.banner-extra {
-		font-weight: 600;
-		margin: 0 0 0.35rem 0 !important;
 	}
 	.source-note {
 		flex-basis: 100%;
@@ -1070,84 +1079,90 @@
 		border-color: var(--high-border);
 		color: var(--high-text);
 	}
-	.empty-available-card {
-		background: #f8fafc;
-		border: 1px dashed var(--border);
-		border-radius: 0.65rem;
-		padding: 1rem;
-		color: var(--muted);
-		font-size: 0.92rem;
-	}
-	.empty-available-card p {
-		margin: 0;
-	}
 
-	/* Dimmed, compact list for hazards without data on the right side */
+	/* Compact, WCAG AA-compliant section for hazards without data */
 	.nodata-compact-box {
 		margin-top: 1rem;
-		padding: 0.75rem 0.9rem;
-		background: #f8fafc;
-		border: 1px solid #e2e8f0;
+		padding: 0.85rem 1rem;
+		background: #f1f5f9;
+		border: 1px solid #cbd5e1;
 		border-radius: 0.65rem;
-		opacity: 0.75;
-		transition: opacity 0.2s ease;
-	}
-	.nodata-compact-box:hover {
-		opacity: 1;
 	}
 	.nodata-compact-title {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;
+		justify-content: space-between;
 		gap: 0.5rem;
-		margin-bottom: 0.5rem;
-		font-size: 0.78rem;
+		margin-bottom: 0.6rem;
+		font-size: 0.82rem;
 		font-weight: 700;
 		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: #64748b;
+		letter-spacing: 0.03em;
+		color: #334155;
 	}
 	.nodata-compact-subtitle {
-		font-size: 0.75rem;
-		font-weight: 400;
+		font-size: 0.78rem;
+		font-weight: 500;
 		text-transform: none;
 		letter-spacing: normal;
-		color: #94a3b8;
+		color: #475569;
 	}
 	.nodata-pills {
 		display: flex;
 		flex-direction: column;
-		gap: 0.35rem;
+		gap: 0.45rem;
 	}
 	.nodata-pill {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		justify-content: space-between;
-		padding: 0.35rem 0.65rem;
+		gap: 0.75rem;
+		padding: 0.5rem 0.75rem;
 		background: #ffffff;
-		border: 1px solid #e2e8f0;
-		border-radius: 0.375rem;
-		font-size: 0.82rem;
-		color: #64748b;
+		border: 1px solid #cbd5e1;
+		border-left: 4px solid #64748b;
+		border-radius: 0.4rem;
+		font-size: 0.84rem;
+		color: #334155;
 	}
-	.nodata-pill-icon {
-		margin-right: 0.45rem;
-		font-size: 0.85rem;
-		filter: grayscale(1);
-		opacity: 0.7;
-	}
-	.nodata-pill-name {
-		font-weight: 500;
-		color: #475569;
+	.nodata-pill-main {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		min-width: 0;
 		flex: 1;
 	}
+	.nodata-pill-header {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+	.nodata-pill-icon {
+		font-size: 0.9rem;
+		filter: grayscale(1);
+	}
+	.nodata-pill-name {
+		font-weight: 700;
+		color: #1e293b;
+	}
+	.nodata-pill-reason {
+		margin: 0;
+		font-size: 0.8rem;
+		color: #334155;
+	}
+	.nodata-pill-source {
+		font-size: 0.75rem;
+		color: #475569;
+	}
 	.nodata-pill-tag {
-		font-size: 0.72rem;
-		font-weight: 600;
-		color: #94a3b8;
-		background: #f1f5f9;
-		padding: 0.15rem 0.45rem;
+		font-size: 0.74rem;
+		font-weight: 700;
+		color: #334155;
+		background: #e2e8f0;
+		border: 1px solid #94a3b8;
+		padding: 0.15rem 0.5rem;
 		border-radius: 0.25rem;
-		letter-spacing: 0.02em;
+		white-space: nowrap;
 	}
 </style>

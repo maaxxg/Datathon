@@ -168,11 +168,11 @@
 	}
 </script>
 
-<div class="nl-query-window no-print" aria-label="Pretraga prirodnim jezikom i JSON filteri">
+<div class="nl-query-window no-print" aria-label="Pretraga prirodnim jezikom i filteri područja">
 	<div class="nl-header">
 		<div>
 			<div class="nl-title-row">
-				<h2><span aria-hidden="true">🤖</span> Pretraga prirodnim jezikom (Ollama → JSON upit + H3 mreža)</h2>
+				<h2><span aria-hidden="true">🔍</span> Pretraga područja prirodnim jezikom i filterima</h2>
 				{#if result}
 					<span class="llm-badge {result.llm_used ? 'llm-online' : 'llm-fallback'}">
 						{result.llm_used ? `Ollama (${result.model})` : `Pravila / predložak (${result.model})`}
@@ -180,7 +180,7 @@
 				{/if}
 			</div>
 			<p class="nl-subtitle">
-				Otvoreni LLM prevodi hrvatski upit u strogu JSON shemu (<code>QUERY_JSON_SCHEMA</code>), a deterministički orkestrator provjerava katalog slojeva i boja heksagonsku H3 mrežu (~0,1 km²) na karti.
+				Opišite kakvo područje tražite na hrvatskom jeziku. Sustav prevodi upit u provjerljive filtere nad katalogom otvorenih podataka i na karti označava odgovarajuće zone (H3 mreža).
 			</p>
 		</div>
 	</div>
@@ -201,7 +201,7 @@
 			maxlength="500"
 		/>
 		<button type="submit" class="btn-primary" disabled={loading || queryText.trim().length < 2}>
-			{loading ? 'Obrada...' : 'Prevedi u JSON'}
+			{loading ? 'Pretraživanje...' : 'Pretraži područje'}
 		</button>
 	</form>
 
@@ -266,7 +266,7 @@
 				<div class="h3-grid-banner">
 					<div class="h3-banner-top">
 						<div>
-							<strong>🗺️ Uber H3 mrežna analiza područja ({s.region}):</strong>
+							<strong>🗺️ Mrežna analiza područja ({s.region}):</strong>
 							<span>
 								Zadovoljava uvjete: <strong>{s.matched_cells}</strong> od <strong>{s.total_cells}</strong> baznih H3 ćelija
 								(~<strong>{fmt(s.matched_area_km2, 1)} km²</strong>, bazna ćelija res {s.h3_resolution || 9} ~{fmt(s.cell_area_km2, 2)} km²).
@@ -397,7 +397,7 @@
 			</div>
 
 			<details class="json-details">
-				<summary>Prikaži strukturirani JSON upit (Ollama <code>format=QUERY_JSON_SCHEMA</code>)</summary>
+				<summary>Prikaži strukturirani JSON upit i sažetak izračuna</summary>
 				<pre>{JSON.stringify(
 						{
 							parsed: result.parsed,
