@@ -32,12 +32,13 @@
 		Aplikacija <strong>Geo-rizik</strong> povezuje službene skupove otvorenih podataka tijela javnog sektora Republike Hrvatske
 		(<a href="https://data.gov.hr/" target="_blank" rel="noopener noreferrer">Portal otvorenih podataka RH</a>, NIPP/INSPIRE servisi)
 		i europskih znanstvenih servisa (Copernicus EFAS, EFEHR ESHM20). Razine opasnosti računaju se <strong>isključivo deterministički</strong>
-		prema javnoj tablici pravila u nastavku — bez proizvoljnih težina i bez procjene umjetnom inteligencijom.
+		prema javnoj tablici pravila u nastavku — bez proizvoljnih težina. Jezični model (AI) koristi se samo za prevođenje pretrage prirodnim jezikom
+		u provjerljive filtere i dodatno pojašnjenje već izračunatog izvještaja, nikada za procjenu razine rizika.
 	</p>
 </section>
 
 <section class="section-block" aria-labelledby="sources-heading">
-	<h2 id="sources-heading">1. Katalog skupova podataka (layers.yaml)</h2>
+	<h2 id="sources-heading">1. Katalog korištenih skupova podataka</h2>
 	{#if loadFailed}
 		<div class="load-error" role="alert">Popis izvora trenutno nije dostupan. Pokušajte ponovno.</div>
 	{/if}
@@ -136,7 +137,7 @@
 						<strong>Srednje:</strong> dubina &gt; 0 m za povratno razdoblje 100 god. ·
 						<strong>Nisko:</strong> dubina &gt; 0 m za povratno razdoblje 500 god. ·
 						<strong>Nema prema karti:</strong> stvarna vrijednost 0 m za sve scenarije.<br />
-						Nodata ili izvan rastera → <strong>nema podataka</strong> (D20). Europski model, 90 m, okvirno.
+						Bez podatka (nodata) ili izvan rastera → <strong>nema podataka</strong>. Europski model, rezolucija 90 m, okvirna procjena.
 					</td>
 				</tr>
 				<tr>
@@ -147,7 +148,7 @@
 						<strong>Vrlo niska seizmičnost:</strong> <em>a</em><sub>g</sub> ≤ 0,04 g ·
 						<strong>Niska seizmičnost:</strong> 0,04 g &lt; <em>a</em><sub>g</sub> ≤ 0,08 g ·
 						<strong>Iznad praga niske seizmičnosti:</strong> <em>a</em><sub>g</sub> &gt; 0,08 g (uz prikaz točne vrijednosti u <em>g</em>).<br />
-						Okvirno; mreža ~10 km; stijena Vs30 = 760 m/s; izvor nije s data.gov.hr.
+						Okvirna procjena; mreža ~10 km; referentna stijena Vs30 = 760 m/s; izvor nije objavljen na data.gov.hr.
 					</td>
 				</tr>
 				<tr>
@@ -198,7 +199,7 @@
 			<strong>Privatnost korisnika:</strong> Aplikacija ne sprema unesene kućne adrese niti koristi analitičke servise trećih strana. Upiti prema servisu Hrvatskih voda zaokružuju se na fiksnu mrežu pločica od 0,02° (~2,2 km), čime se u privremenoj memoriji nikada ne pohranjuje točna lokacija korisnika. Pozadinska karta učitava se s poslužitelja OpenStreetMap, a uključivi sloj poplava izravno sa servisa Hrvatskih voda; ti poslužitelji vide koje se pločice karte učitavaju.
 		</li>
 		<li>
-			<strong>Otvoreni kod i licence:</strong> Izvorni kod aplikacije objavljen je pod <strong>MIT licencom</strong>. Izvedena mreža s EFAS vrijednostima poplava objavljuje se pod licencom <strong>Open Database License (ODbL 1.0)</strong>, a podaci modela ESHM20 pod licencom <strong>CC BY 4.0</strong> (Danciu et al., 2021, DOI: 10.12686/a15).
+			<strong>Otvoreni kod i licence:</strong> Izvorni kod aplikacije objavljen je pod <strong>MIT licencom</strong>. Skupovi podataka tijela javnog sektora RH (DGU Adrese INSPIRE, MPGI Geohazardi) koriste se pod <strong>Otvorenom dozvolom RH</strong>. Izvedena mreža s EFAS vrijednostima poplava objavljuje se pod licencom <strong>Open Database License (ODbL 1.0)</strong>, a podaci modela ESHM20 pod licencom <strong>CC BY 4.0</strong> (Danciu et al., 2021, DOI: 10.12686/a15).
 		</li>
 	</ul>
 </section>

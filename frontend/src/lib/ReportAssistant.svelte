@@ -90,12 +90,12 @@
 	}
 </script>
 
-<section class="assistant-section no-print" aria-label="AI objašnjenje i pitanja o izvještaju">
+<section class="assistant-section no-print" aria-label="Dodatno objašnjenje i pitanja o izvještaju">
 	<div class="assistant-header">
 		<div>
-			<h3><span aria-hidden="true">🤖</span> AI objašnjenje i „Pitaj o ovom izvještaju” (Ollama)</h3>
+			<h3><span aria-hidden="true">🤖</span> Dodatno objašnjenje i pitanja o izvještaju</h3>
 			<p class="assistant-sub">
-				AI ne računa razine rizika — odgovara isključivo iz gornjeg determinističkog JSON izvještaja (odluka D5).
+				AI ne računa razine opasnosti — sažima i odgovara isključivo na temelju gornjeg determinističkog izvještaja.
 			</p>
 		</div>
 		<button
@@ -104,7 +104,7 @@
 			onclick={generateExplanation}
 			disabled={loadingExplain}
 		>
-			{loadingExplain ? 'Generiranje...' : aiExplanation ? '🔄 Obnovi objašnjenje' : '✨ Generiraj AI objašnjenje'}
+			{loadingExplain ? 'Generiranje...' : aiExplanation ? '🔄 Obnovi objašnjenje' : '✨ Generiraj sažeto objašnjenje'}
 		</button>
 	</div>
 
