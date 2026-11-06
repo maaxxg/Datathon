@@ -25,72 +25,30 @@ from .templates import HAZARD_NAMES, LEVEL_LABELS
 from .risk_rules import Level
 
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
-DEFAULT_OLLAMA_MODEL = "qwen2.5:7b"
-DEFAULT_OLLAMA_TIMEOUT = 25.0
+DEFAULT_OLLAMA_MODEL = "qwen2.5:3b"
+DEFAULT_OLLAMA_TIMEOUT = 60.0
 
-NL_QUERY_SYSTEM_PROMPT = """Ti si prevoditelj hrvatskih korisničkih upita u strogi JSON format za sustav Geo-rizik.
-Tvoj jedini zadatak je pretvoriti tekstualni upit korisnika u JSON objekt prema zadanoj JSON shemi.
-Nikada ne izmišljaj polja izvan sheme.
+NL_QUERY_SYSTEM_PROMPT = """Prevedi hrvatski upit u JSON za Geo-rizik.
+Pravila:
+- intent: "find_area" (pretraga područja po opasnostima), "compare_locations" (usporedba 2 lokacije), "show_layer" (uključi sloj na karti).
+- region: grad/općina/regija u nominativu malim slovima ("petrinja", "sisak", "glina", "banovina", "hrvatska kostajnica", "lekenik", "sunja", "topusko", "dvor", "split", "osijek", "zagreb", "karlovac") ili null.
+- filters (za find_area): hazard iz ["flood","seismic","landslide","liquefaction","sinkhole","unfavourable","groundwater"], max_level:
+  - "nema_prema_karti" za "bez poplava" ili "nije nepovoljno za gradnju"
+  - "nisko" za nisku podložnost/rizik ili "bez klizišta/vrtača/likvefakcije" ili "duboka podzemna voda"
+  - "srednje" za najviše srednju razinu
+  - "vrlo_niska_seizmicnost" (<=0,04 g), "niska_seizmicnost" (<=0,08 g), "iznad_praga_niske_seizmicnosti"
+- locations (za compare_locations): do 2 adrese ["Ulica br, Grad", ...].
+- layer (za show_layer): "flood_hv","flood_efas","seismic","landslide","liquefaction","sinkhole","unfavourable","groundwater".
+- unsupported: kriteriji izvan kataloga (npr. "cijene nekretnina", "buka", "požari", "kvaliteta zraka", "udaljenost od osnovne škole", "nagib terena")."""
 
-Pravila mapiranja:
-1. `intent`:
-   - "find_area": korisnik traži područja/lokacije/zone prema uvjetima opasnosti (npr. "Pronađi područja oko Petrinje bez poplava...").
-   - "compare_locations": korisnik traži usporedbu dviju adresa ili lokacija (npr. "Usporedi Ulicu X u Petrinji s Ulicom Y u Sisku").
-   - "show_layer": korisnik traži uključivanje ili prikaz određenog sloja na karti (npr. "Uključi na karti sloj podložnosti likvefakciji").
+REPORT_EXPLAIN_SYSTEM_PROMPT = """Ti si asistent sustava Geo-rizik za građane u Hrvatskoj.
+Na temelju priloženog determinističkog JSON izvještaja napiši sažeto objašnjenje na hrvatskom (3-4 kratka odlomka):
+1. Ne izmišljaj podatke ni brojke i ne mijenjaj razine opasnosti iz JSON-a.
+2. Razlikuj "nema_prema_karti" (nema utvrđene opasnosti) od "nema_podataka" (izvor ne pokriva lokaciju, npr. geohazardi MPGI-ja pokrivaju samo Banovinu).
+3. Spomeni ograničenja iz `notes` i `source.note` te preporučene korake (`recommended_actions`) i napomenu da izvještaj nije službeno stručno mišljenje."""
 
-2. `region`:
-   - Naziv naselja, općine, grada ili regije u nominativu jednine malim slovima (npr. "petrinja", "sisak", "glina", "banovina", "hrvatska kostajnica", "lekenik", "sunja", "topusko", "dvor", "split", "osijek", "zagreb", "karlovac").
-   - Ako regija nije navedena (npr. kod compare_locations ili općeg show_layer), postavi na `null`.
-
-3. `filters` (samo za `find_area`):
-   - Kanonski nazivi opasnosti (`hazard`):
-     - "flood" (poplave)
-     - "seismic" (potres, seizmičnost)
-     - "landslide" (klizišta)
-     - "liquefaction" (likvefakcija tla)
-     - "sinkhole" (vrtače, ponikve)
-     - "unfavourable" (nepovoljno za gradnju / povoljno za gradnju)
-     - "groundwater" (podzemna voda)
-   - Dopuštene vrijednosti `max_level`:
-     - "nema_prema_karti": kad korisnik traži "bez poplava", "izvan poplavnih zona", "nije nepovoljno za gradnju", "povoljno za gradnju".
-     - "nisko": kad korisnik traži "niska podložnost", "nizak rizik", "duboka podzemna voda", ili kaže "bez klizišta / bez vrtača / bez likvefakcije" (jer ti slojevi imaju razrede niska/srednja/visoka).
-     - "srednje": kad korisnik dopušta do srednje razine ("najviše srednja").
-     - "vrlo_niska_seizmicnost": za vrlo nisku seizmičnost (≤ 0,04 g).
-     - "niska_seizmicnost": za nisku seizmičnost (≤ 0,08 g).
-     - "iznad_praga_niske_seizmicnosti": za seizmičnost iznad niske.
-
-4. `locations` (samo za `compare_locations`):
-   - Niz od najviše 2 adrese/lokacije u čitljivom nominativnom obliku "Ulica i broj, Grad" (npr. ["Ulica Matije Gupca 12, Petrinja", "Rimska ulica 19, Sisak"]).
-
-5. `layer` (samo za `show_layer`):
-   - Jedan od ključeva sloja: "flood_hv", "flood_efas", "seismic", "landslide", "liquefaction", "sinkhole", "unfavourable", "groundwater".
-
-6. `unsupported`:
-   - Kratki hrvatski nazivi kriterija koje korisnik spominje, a nisu u gornjem katalogu prirodnih opasnosti:
-     npr. "cijene nekretnina", "buka", "požari", "kvaliteta zraka", "udaljenost od osnovne škole", "nagib terena".
-"""
-
-REPORT_EXPLAIN_SYSTEM_PROMPT = """Ti si stručni komunikacijski asistent sustava Geo-rizik za građane (kupce i najmoprimce nekretnina u Hrvatskoj).
-Dobit ćeš isključivo deterministički JSON izvještaj o izloženosti lokacije prirodnim opasnostima.
-
-Stroga pravila:
-1. Piši na jasnom, prirodnom i pristupačnom hrvatskom jeziku (3 do 5 kratkih odlomaka ili preglednih točaka).
-2. NIKADA ne izmišljaj podatke, razine opasnosti, brojke, povratna razdoblja, dubine, ubrzanja tla (ag) niti izvore koji nisu u priloženom JSON-u.
-3. Ne mijenjaj razine opasnosti iz JSON-a. Sve razine su već izračunate determinističkim pravilima.
-4. Strogo razlikuj "nema_prema_karti" (izvor pokriva lokaciju i ne prikazuje opasnost) od "nema_podataka" (za tu lokaciju izvor nema podataka, npr. geohazardi MPGI-ja pokrivaju samo Banovinu).
-5. Obavezno spomeni važna ograničenja iz polja `notes` i `source.note` (npr. ESHM20 potres je okvirni model na mreži ~10 km za referentnu stijenu Vs30 = 760 m/s; podzemna voda je jedno mjerenje iz 2021.; eventualni privremeni prekid Hrvatskih voda).
-6. Na kraju kratko podsjeti na preporučene korake iz polja `recommended_actions` i napomenu da izvještaj nije stručno mišljenje ni službena potvrda.
-"""
-
-REPORT_QA_SYSTEM_PROMPT = """Ti si asistent sustava Geo-rizik koji odgovara na pitanja korisnika isključivo na temelju priloženog determinističkog JSON izvještaja za odabranu lokaciju.
-
-Stroga pravila:
-1. Odgovaraj isključivo na hrvatskom jeziku, kratko, jasno i točno.
-2. Koristi SAMO činjenice, razine, detalje, napomene (`notes`), izvore (`source`) i preporučene korake (`recommended_actions`) iz priloženog JSON izvještaja.
-3. NIKADA ne računaj nove razine rizika i ne nagađaj o svojstvima terena ili zgrade koja nisu u JSON-u.
-4. Strogo razlikuj "nema rizika prema karti" (`nema_prema_karti`) i "nema podataka" (`nema_podataka`).
-5. Ako korisnik pita za nešto što nije u izvještaju (npr. cijene nekretnina, šumski požari, kvaliteta zraka, buka, statika konkretne zgrade, građevinska dozvola), izričito reci da taj podatak nije dio ovog izvještaja ni korištenih otvorenih podataka te uputi korisnika na nadležne institucije iz `recommended_actions`.
-"""
+REPORT_QA_SYSTEM_PROMPT = """Odgovori na pitanje korisnika na hrvatskom jeziku (2-4 rečenice) isključivo prema priloženom JSON izvještaju Geo-rizik.
+Ne izmišljaj podatke niti mijenjaj razine opasnosti. Ako se pitanje odnosi na podatke kojih nema u JSON-u (npr. cijene nekretnina, buka, požari), reci da sustav Geo-rizik ne sadrži te podatke."""
 
 
 # --- Deterministic Croatian Fallbacks (when Ollama is offline) ---------------
@@ -496,7 +454,8 @@ class OllamaClient:
             ],
             "format": QUERY_JSON_SCHEMA,
             "stream": False,
-            "options": {"temperature": 0},
+            "keep_alive": "30m",
+            "options": {"temperature": 0, "num_ctx": 2048, "num_predict": 220},
         }
         try:
             res = await self._get_client().post(f"{self.base_url}/api/chat", json=payload)
@@ -504,6 +463,20 @@ class OllamaClient:
             body = res.json()
             content = body.get("message", {}).get("content", "")
             parsed = ParsedQuery.model_validate_json(content)
+            # Normalize inflected Croatian region names (e.g. "Petrinji" -> "petrinja") if needed
+            if parsed.region:
+                canonical_reg = _extract_region(parsed.region.lower()) or _extract_region(text.lower())
+                if canonical_reg:
+                    parsed.region = canonical_reg
+                else:
+                    parsed.region = parsed.region.strip().lower()
+            elif parsed.intent is Intent.FIND_AREA:
+                parsed.region = _extract_region(text.lower()) or "banovina"
+            # Ensure unsupported criteria mentioned in user text are always captured
+            det_unsup = _extract_unsupported(text.lower())
+            for u in det_unsup:
+                if u not in parsed.unsupported:
+                    parsed.unsupported.append(u)
             return parsed, True
         except Exception:
             return fallback_parse_nl_query(text), False
@@ -518,14 +491,14 @@ class OllamaClient:
                 {
                     "role": "user",
                     "content": (
-                        "Objasni sljedeći deterministički JSON izvještaj na jasnom hrvatskom jeziku, "
-                        "koristeći isključivo podatke iz JSON-a:\n\n"
-                        + json.dumps(clean, ensure_ascii=False, indent=2)
+                        "Objasni ovaj deterministički JSON izvještaj na hrvatskom jeziku:\n"
+                        + json.dumps(clean, ensure_ascii=False, separators=(",", ":"))
                     ),
                 },
             ],
             "stream": False,
-            "options": {"temperature": 0.1},
+            "keep_alive": "30m",
+            "options": {"temperature": 0.1, "num_ctx": 2048, "num_predict": 320},
         }
         try:
             res = await self._get_client().post(f"{self.base_url}/api/chat", json=payload)
@@ -556,15 +529,16 @@ class OllamaClient:
                 {
                     "role": "user",
                     "content": (
-                        "Deterministički JSON izvještaj za odabranu lokaciju:\n"
-                        + json.dumps(clean, ensure_ascii=False, indent=2)
-                        + "\n\nPitanje korisnika: "
+                        "JSON izvještaj:\n"
+                        + json.dumps(clean, ensure_ascii=False, separators=(",", ":"))
+                        + "\nPitanje: "
                         + question.strip()
                     ),
                 },
             ],
             "stream": False,
-            "options": {"temperature": 0.1},
+            "keep_alive": "30m",
+            "options": {"temperature": 0.1, "num_ctx": 2048, "num_predict": 220},
         }
         try:
             res = await self._get_client().post(f"{self.base_url}/api/chat", json=payload)
