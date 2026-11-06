@@ -289,15 +289,40 @@ a:hover {
 	display: none !important;
 }
 
+@page {
+	size: A4 portrait;
+	margin: 12mm 12mm 14mm 12mm;
+}
+
 @media print {
+	* {
+		-webkit-print-color-adjust: exact !important;
+		print-color-adjust: exact !important;
+	}
 	.no-print {
 		display: none !important;
 	}
 	.only-print {
 		display: block !important;
 	}
+	html,
 	body {
-		background: #fff;
-		color: #000;
+		background: #ffffff !important;
+		color: #1d1c1a !important;
+		font-size: 9.5pt;
+		line-height: 1.4;
+		margin: 0 !important;
+		padding: 0 !important;
+		width: 100% !important;
+	}
+	.container {
+		max-width: 100% !important;
+		padding: 0 !important;
+		margin: 0 !important;
+		width: 100% !important;
+	}
+	.main-content {
+		padding-top: 0 !important;
+		padding-bottom: 0 !important;
 	}
 }

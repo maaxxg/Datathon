@@ -47,7 +47,7 @@
 	{@render children()}
 </main>
 
-<footer class="site-footer">
+<footer class="site-footer no-print">
 	<div class="container footer-grid">
 		<div class="footer-brand">
 			<span class="footer-name">Geo-rizik</span>

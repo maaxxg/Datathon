@@ -614,39 +614,53 @@
 				</ol>
 			{/if}
 
+			{#snippet nodataListContent()}
+				<p class="nodata-subtitle">
+					Izvor podataka ne pokriva ovu točku ili je servis privremeno nedostupan.
+				</p>
+				<ul class="nodata-list">
+					{#each noDataHazards as h}
+						{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, code: '··' }}
+						{@const reasonText =
+							h.notes && h.notes.length > 0 ? h.notes.join(' ') : h.explanation || ''}
+						<li class="nodata-item">
+							<span class="hz-code hz-code-muted">{meta.code}</span>
+							<div class="nodata-main">
+								<span class="nodata-name">{meta.title}</span>
+								{#if reasonText}
+									<p class="nodata-reason">{reasonText}</p>
+								{/if}
+								{#if h.source && h.source.title}
+									<span class="nodata-source">
+										Izvor: {[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
+										{#if h.source.year}({h.source.year}.){/if}
+									</span>
+								{/if}
+							</div>
+							<span class="nodata-tag">Nema podataka</span>
+						</li>
+					{/each}
+				</ul>
+			{/snippet}
+
 			{#if noDataHazards.length > 0}
-				<details class="nodata-box" open={availableHazards.length === 0}>
+				<!-- Na ekranu: interaktivni sklopivi detalji -->
+				<details class="nodata-box no-print" open={availableHazards.length === 0}>
 					<summary>
 						<span class="nodata-title">Nedostupni podaci za ovu lokaciju</span>
 						<span class="section-count">{String(noDataHazards.length).padStart(2, '0')}</span>
 					</summary>
-					<p class="nodata-subtitle">
-						Izvor podataka ne pokriva ovu točku ili je servis privremeno nedostupan.
-					</p>
-					<ul class="nodata-list">
-						{#each noDataHazards as h}
-							{@const meta = HAZARD_META[h.hazard] || { title: h.hazard, code: '··' }}
-							{@const reasonText =
-								h.notes && h.notes.length > 0 ? h.notes.join(' ') : h.explanation || ''}
-							<li class="nodata-item">
-								<span class="hz-code hz-code-muted">{meta.code}</span>
-								<div class="nodata-main">
-									<span class="nodata-name">{meta.title}</span>
-									{#if reasonText}
-										<p class="nodata-reason">{reasonText}</p>
-									{/if}
-									{#if h.source && h.source.title}
-										<span class="nodata-source">
-											Izvor: {[h.source.title, h.source.publisher].filter(Boolean).join(' — ')}
-											{#if h.source.year}({h.source.year}.){/if}
-										</span>
-									{/if}
-								</div>
-								<span class="nodata-tag">Nema podataka</span>
-							</li>
-						{/each}
-					</ul>
+					{@render nodataListContent()}
 				</details>
+
+				<!-- Za ispis / PDF (A4): uvijek otvorena lista sa sažetim popisom u istom formatu -->
+				<section class="nodata-box nodata-print-box only-print" aria-label="Nedostupni podaci za ovu lokaciju">
+					<div class="nodata-print-head">
+						<span class="nodata-title">Nedostupni podaci za ovu lokaciju</span>
+						<span class="section-count">{String(noDataHazards.length).padStart(2, '0')}</span>
+					</div>
+					{@render nodataListContent()}
+				</section>
 			{/if}
 
 			<ReportAssistant {report} />
@@ -1339,10 +1353,110 @@
 		font-size: 0.76rem;
 	}
 
+	.nodata-print-head {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 0.75rem;
+		padding: 0.35rem 0 0.25rem;
+		border-bottom: 1px solid var(--hair);
+		margin-bottom: 0.35rem;
+	}
+
 	@media print {
+		.workspace-grid {
+			display: block !important;
+			margin: 0 !important;
+			gap: 0 !important;
+			width: 100% !important;
+		}
+		.report-column {
+			width: 100% !important;
+			max-width: 100% !important;
+		}
+		.location-head {
+			padding-bottom: 0.4rem;
+			margin-bottom: 0.6rem;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.location-head h2 {
+			font-size: 1.35rem;
+			margin: 0.15rem 0 0.25rem 0;
+		}
+		.verdict {
+			margin-bottom: 0.8rem;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
 		.verdict-strip {
-			-webkit-print-color-adjust: exact;
-			print-color-adjust: exact;
+			-webkit-print-color-adjust: exact !important;
+			print-color-adjust: exact !important;
+			padding: 0.35rem 0.75rem;
+		}
+		.verdict-body {
+			padding: 0.6rem 0.75rem;
+		}
+		.verdict-title h3 {
+			font-size: 1.15rem;
+		}
+		.section-head {
+			padding-bottom: 0.2rem;
+			margin-top: 0.8rem;
+			break-after: avoid;
+			page-break-after: avoid;
+		}
+		.ledger {
+			margin-top: 0.2rem;
+		}
+		.ledger-row {
+			padding: 0.55rem 0;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.detail-grid {
+			margin-top: 0.35rem;
+			padding: 0.2rem 0;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.row-source {
+			margin-top: 0.35rem;
+		}
+		.nodata-box {
+			margin-top: 0.8rem;
+			padding: 0.5rem 0.75rem;
+			background: #faf8f4 !important;
+			border: 1px dashed var(--nodata-border) !important;
+			break-inside: auto;
+		}
+		.nodata-item {
+			padding: 0.35rem 0;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.actions-section {
+			margin-top: 0.9rem;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.actions-list li {
+			padding: 0.45rem 0;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.report-disclaimer {
+			margin-top: 0.8rem;
+			padding-top: 0.45rem;
+			font-size: 0.78rem;
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+		.meter i,
+		.hz-code,
+		.nodata-tag {
+			-webkit-print-color-adjust: exact !important;
+			print-color-adjust: exact !important;
 		}
 	}
 </style>
