@@ -207,8 +207,8 @@
 	</form>
 
 	<div class="nl-examples">
-		<span class="examples-label">Primjeri upita</span>
-		<ul>
+		<span class="examples-label">Primjeri upita:</span>
+		<ul class="example-chips">
 			{#each EXAMPLE_QUERIES as ex}
 				<li>
 					<button type="button" class="example" onclick={() => submitQuery(ex)}>„{ex}“</button>
@@ -512,10 +512,9 @@
 	}
 	.nl-examples {
 		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 0.25rem 0.75rem;
-		margin-top: 0.75rem;
+		flex-direction: column;
+		gap: 0.45rem;
+		margin-top: 0.85rem;
 	}
 	.examples-label {
 		font-size: 0.74rem;
@@ -524,29 +523,46 @@
 		text-transform: uppercase;
 		color: var(--muted);
 	}
-	.nl-examples ul {
+	.example-chips {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.15rem 1.1rem;
+		gap: 0.45rem;
 		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
 	.example {
-		padding: 0.1rem 0;
-		background: none;
-		border: none;
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.35rem;
+		min-height: 1.95rem;
+		padding: 0.3rem 0.65rem;
 		font-family: var(--serif);
 		font-style: italic;
-		font-size: 0.88rem;
+		font-size: 0.85rem;
 		color: var(--ink-2);
+		background: var(--surface);
+		border: 1px dashed #8c826e;
+		border-radius: 2px;
 		text-align: left;
 		cursor: pointer;
-		border-bottom: 1px dotted var(--muted);
+		transition: all 0.12s ease;
+		line-height: 1.35;
+	}
+	.example::before {
+		content: '↳';
+		font-family: var(--mono);
+		font-style: normal;
+		font-size: 0.82rem;
+		color: var(--accent);
+		flex: none;
 	}
 	.example:hover {
-		color: var(--accent-ink);
-		border-bottom-color: var(--accent-ink);
+		background: var(--paper-2);
+		border-style: solid;
+		border-color: var(--accent-ink);
+		color: var(--ink);
+		box-shadow: 2px 2px 0 rgba(29, 28, 26, 0.08);
 	}
 	.nl-error {
 		margin-top: 0.75rem;

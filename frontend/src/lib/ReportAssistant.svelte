@@ -263,34 +263,42 @@
 	}
 	.suggested {
 		display: flex;
-		flex-direction: column;
-		margin: 0;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin: 0.35rem 0 0.2rem 0;
 		padding: 0;
 		list-style: none;
-		border-top: 1px solid var(--hair);
 	}
 	.sq {
-		width: 100%;
-		padding: 0.45rem 0;
-		background: none;
-		border: none;
-		border-bottom: 1px solid var(--hair);
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.35rem;
+		min-height: 1.85rem;
+		padding: 0.25rem 0.65rem;
+		background: var(--surface);
+		border: 1px dashed #8c826e;
+		border-radius: 2px;
 		font-family: var(--sans);
-		font-size: 0.88rem;
-		color: var(--ink);
+		font-size: 0.82rem;
+		color: var(--ink-2);
 		text-align: left;
 		cursor: pointer;
+		transition: all 0.12s ease;
 	}
 	.sq::before {
-		content: '→';
-		display: inline-block;
-		width: 1.4rem;
-		color: var(--accent);
+		content: '?';
 		font-family: var(--mono);
+		font-weight: 700;
+		font-size: 0.78rem;
+		color: var(--accent);
+		flex: none;
 	}
 	.sq:hover:not(:disabled) {
-		color: var(--accent-ink);
+		color: var(--ink);
 		background: var(--paper-2);
+		border-style: solid;
+		border-color: var(--accent-ink);
+		box-shadow: 2px 2px 0 rgba(29, 28, 26, 0.08);
 	}
 	.sq:disabled {
 		opacity: 0.5;

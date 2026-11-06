@@ -382,11 +382,13 @@
 
 		<div class="preset-bar">
 			<span class="preset-title">Testne lokacije:</span>
-			{#each PRESET_LOCATIONS as p}
-				<button type="button" class="preset" onclick={() => selectPreset(p)}>
-					{p.name}
-				</button>
-			{/each}
+			<div class="preset-chips">
+				{#each PRESET_LOCATIONS as p}
+					<button type="button" class="preset" onclick={() => selectPreset(p)}>
+						{p.name}
+					</button>
+				{/each}
+			</div>
 		</div>
 	</div>
 </section>
@@ -780,35 +782,53 @@
 	.preset-bar {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 0.15rem 0.2rem;
-		margin-top: 0.7rem;
-		font-size: 0.88rem;
+		align-items: center;
+		gap: 0.45rem 0.75rem;
+		margin-top: 0.85rem;
 	}
 	.preset-title {
+		font-family: var(--sans);
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 		color: var(--muted);
-		margin-right: 0.35rem;
+		white-space: nowrap;
+	}
+	.preset-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
 	}
 	.preset {
-		padding: 0.15rem 0.1rem;
-		background: none;
-		border: none;
-		font: inherit;
-		color: var(--link);
-		text-decoration: underline;
-		text-decoration-thickness: 1px;
-		text-underline-offset: 0.2em;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		min-height: 1.85rem;
+		padding: 0.2rem 0.65rem;
+		font-family: var(--sans);
+		font-size: 0.82rem;
+		font-weight: 600;
+		color: var(--ink-2);
+		background: var(--surface);
+		border: 1px dashed #8c826e;
+		border-radius: 2px;
 		cursor: pointer;
+		transition: all 0.12s ease;
+		white-space: nowrap;
+	}
+	.preset::before {
+		content: '⌖';
+		font-size: 0.85rem;
+		color: var(--accent);
+		line-height: 1;
 	}
 	.preset:hover {
-		color: var(--link-hover);
-	}
-	.preset:not(:last-child)::after {
-		content: '·';
-		display: inline-block;
-		margin-left: 0.5rem;
-		color: var(--muted);
-		text-decoration: none;
+		background: var(--paper-2);
+		border-style: solid;
+		border-color: var(--accent-ink);
+		color: var(--accent-ink);
+		box-shadow: 2px 2px 0 rgba(29, 28, 26, 0.08);
 	}
 	.geocoder-msg {
 		margin: 0.5rem 0 0 0;
