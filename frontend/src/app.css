@@ -291,13 +291,14 @@ a:hover {
 
 @page {
 	size: A4 portrait;
-	margin: 12mm 12mm 14mm 12mm;
+	margin: 0;
 }
 
 @media print {
 	* {
 		-webkit-print-color-adjust: exact !important;
 		print-color-adjust: exact !important;
+		box-sizing: border-box !important;
 	}
 	.no-print {
 		display: none !important;
@@ -310,19 +311,22 @@ a:hover {
 		background: #ffffff !important;
 		color: #1d1c1a !important;
 		font-size: 9.5pt;
-		line-height: 1.4;
+		line-height: 1.45;
 		margin: 0 !important;
 		padding: 0 !important;
 		width: 100% !important;
+		overflow-x: hidden !important;
 	}
 	.container {
-		max-width: 100% !important;
+		width: 100% !important;
+		max-width: 210mm !important;
+		padding: 14mm 18mm 16mm 18mm !important;
+		margin: 0 auto !important;
+		box-sizing: border-box !important;
+	}
+	.main-content {
 		padding: 0 !important;
 		margin: 0 !important;
 		width: 100% !important;
-	}
-	.main-content {
-		padding-top: 0 !important;
-		padding-bottom: 0 !important;
 	}
 }
