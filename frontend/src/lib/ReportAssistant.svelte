@@ -188,6 +188,10 @@
 <style>
 	.assistant {
 		margin-top: 2rem;
+		padding: 1.1rem 1.25rem 1.25rem;
+		background: var(--surface);
+		border: 1.5px solid var(--ink);
+		box-shadow: 5px 5px 0 var(--paper-2);
 	}
 	.section-head {
 		display: flex;
@@ -219,7 +223,7 @@
 	.explanation {
 		margin-bottom: 1rem;
 		padding: 0.85rem 1rem;
-		background: var(--surface);
+		background: var(--paper);
 		border-left: 3px solid var(--ink);
 	}
 	.explanation-meta {
