@@ -11,10 +11,9 @@
 
 	const EXAMPLE_QUERIES = [
 		'Pronađi mi područja oko Petrinje bez poplava i s niskom podložnosti klizištima.',
-		'Pronađi područja u Petrinji bez poplava i s cijenom kvadrata ispod 1500 eura.',
-		'Pronađi područja u Splitu bez poplava i bez klizišta.',
-		'Prikaži sloj klizišta na Banovini.',
-		'Usporedi Ulicu Matije Gupca 12 u Petrinji s Rimskom ulicom 19 u Sisku.'
+		'Tražim lokacije u Sisku koje nisu u poplavnoj zoni i imaju nisku podložnost likvefakciji.',
+		'Gdje u Glini je povoljno za gradnju, bez klizišta i bez vrtača?',
+		'Prikaži sloj klizišta na Banovini.'
 	];
 
 	const INTENT_LABELS = {
